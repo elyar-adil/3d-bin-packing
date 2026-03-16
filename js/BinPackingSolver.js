@@ -49,7 +49,7 @@ class BinPackingSolver {
 
     // push 3 new candidate position
     _updateCandidatePositions(candidatePosition, box, oldPositionIndex) {
-        if (oldPositionIndex)
+        if (oldPositionIndex != null)
             this._removeByIndex(candidatePosition, oldPositionIndex);
         candidatePosition.push(new Vector3D(box.position.x + box.size.x, box.position.y, box.position.z));
         candidatePosition.push(new Vector3D(box.position.x, box.position.y + box.size.y, box.position.z));
@@ -148,6 +148,7 @@ class BinPackingSolver {
 
 
     _moveBoxToShrink(box) {
+        var anyMovement = false;
         var boxMoved = false;
         do {
             var moveCount = 0;
@@ -170,8 +171,9 @@ class BinPackingSolver {
             box.position.z += 0.01;
             moveCount--;
             boxMoved = (moveCount != 0);
+            if (boxMoved) anyMovement = true;
         } while (boxMoved);
-        return boxMoved;
+        return anyMovement;
     }
 }
 
@@ -194,13 +196,8 @@ class Container {
     }
 
     canHold(box) {
-        var collide = false;
+        var collide = this.boxes.some(boxInContainer => Box.collide(box, boxInContainer));
 
-        this.boxes.forEach(boxInContainer => {
-            if (Box.collide(box, boxInContainer)) {
-                collide = true;
-            }
-        });
         // test whether box collide with container
         if (collide || box.position.x < 0
             || box.position.y < 0
@@ -243,7 +240,7 @@ class Box {
     }
 
     get orientation() {
-        return this.orientation;
+        return this._orientation;
     }
 
     static collide(a, b) {
