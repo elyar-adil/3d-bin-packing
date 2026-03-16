@@ -221,6 +221,25 @@ function sortBoxesForPacking(boxes) {
 }
 
 // ─────────────────────────────────────────────
+// Gravity: drop box to the highest support surface within its x-z footprint
+// ─────────────────────────────────────────────
+function gravityDrop(box, container) {
+    const TOL = 0.001;
+    let supportY = 0;
+    for (const b of container.boxes) {
+        const xOverlap = box.position.x + TOL < b.position.x + b.size.x
+            && box.position.x + box.size.x - TOL > b.position.x;
+        const zOverlap = box.position.z + TOL < b.position.z + b.size.z
+            && box.position.z + box.size.z - TOL > b.position.z;
+        if (xOverlap && zOverlap) {
+            const top = b.position.y + b.size.y;
+            if (top > supportY) supportY = top;
+        }
+    }
+    box.position.y = supportY;
+}
+
+// ─────────────────────────────────────────────
 // BaseSolver
 // ─────────────────────────────────────────────
 class BaseSolver {
@@ -274,16 +293,13 @@ class HeuristicSolver extends BaseSolver {
     }
 
     _moveBoxToShrink(box) {
+        // First, drop to the nearest support surface (gravity)
+        gravityDrop(box, this.container);
+
         var anyMovement = false;
         var boxMoved = false;
         do {
             var moveCount = 0;
-            while (this.container.canHold(box)) {
-                box.position.y -= 0.01;
-                moveCount++;
-            }
-            box.position.y += 0.01;
-            moveCount--;
             while (this.container.canHold(box)) {
                 box.position.x -= 0.01;
                 moveCount++;
@@ -449,10 +465,11 @@ class GuillotineSolver extends BaseSolver {
                 continue;
             }
 
-            // Place box at bottom-left-front corner of the space
+            // Place box at bottom-left-front corner of the space, then drop to support
             const sp = freeSpaces[bestSpaceIdx];
             box.orientation = bestOrientation;
             box.position = new Vector3D(sp.x, sp.y, sp.z);
+            gravityDrop(box, container);
 
             // Check constraints (weight, fragile)
             if (!container.canHold(box)) {
@@ -605,6 +622,7 @@ class MaximalSpacesSolver extends BaseSolver {
             const sp = freeSpaces[bestSpaceIdx];
             box.orientation = bestOrientation;
             box.position = new Vector3D(sp.x, sp.y, sp.z);
+            gravityDrop(box, container);
 
             if (!container.canHold(box)) {
                 unPackableBoxes.push(box);
