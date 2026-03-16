@@ -1,0 +1,448 @@
+/* 3D Bin Packing - Main Stylesheet */
+
+:root {
+    --sidebar-bg: #ffffff;
+    --main-bg: #f0f2f5;
+    --accent: #3b6fd4;
+    --accent-hover: #2d58b0;
+    --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --border-color: #dee2e6;
+    --text-muted: #6c757d;
+    --badge-fragile: #dc3545;
+    --badge-orientation: #fd7e14;
+    --badge-group: #0d6efd;
+    --badge-isolated: #6f42c1;
+}
+
+body {
+    background-color: var(--main-bg);
+    font-size: 14px;
+    color: #343a40;
+}
+
+/* ─── Layout ──────────────────────────────── */
+#app-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+#app-header {
+    background: linear-gradient(135deg, #1a3a6e 0%, #2d58b0 100%);
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+}
+
+#app-header h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.05em;
+}
+
+#app-header .subtitle {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin: 0;
+}
+
+#app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 52px);
+}
+
+/* ─── Sidebar ─────────────────────────────── */
+#sidebar {
+    width: 300px;
+    min-width: 280px;
+    max-width: 300px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ─── Main area ───────────────────────────── */
+#main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 12px;
+    gap: 10px;
+}
+
+/* ─── Cards ───────────────────────────────── */
+.panel-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.panel-card .panel-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.panel-card .panel-header:hover {
+    background: #eef0f3;
+}
+
+.panel-card .panel-header .toggle-icon {
+    margin-left: auto;
+    transition: transform 0.2s;
+    font-size: 0.7rem;
+}
+
+.panel-card .panel-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.panel-body {
+    padding: 12px;
+}
+
+/* ─── Form controls ───────────────────────── */
+.form-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-bottom: 2px;
+    color: #495057;
+}
+
+.form-control, .form-select {
+    font-size: 0.82rem;
+    padding: 4px 8px;
+    height: auto;
+}
+
+.input-group-text {
+    font-size: 0.78rem;
+    padding: 4px 8px;
+}
+
+.dim-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+}
+
+.dim-group .dim-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 1px;
+}
+
+/* ─── Buttons ─────────────────────────────── */
+.btn-apply {
+    font-size: 0.8rem;
+    padding: 5px 14px;
+}
+
+.btn-solve {
+    font-size: 0.95rem;
+    font-weight: 600;
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-solve:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+.btn-solve:active {
+    transform: translateY(0);
+}
+
+.btn-solve:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ─── Algorithm radio ─────────────────────── */
+.algo-option {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 7px 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.algo-option:hover {
+    background: #f0f4ff;
+    border-color: var(--accent);
+}
+
+.algo-option.selected {
+    background: #eef2ff;
+    border-color: var(--accent);
+}
+
+.algo-option input[type=radio] {
+    margin-right: 6px;
+}
+
+.algo-option .algo-name {
+    font-weight: 600;
+    font-size: 0.83rem;
+}
+
+.algo-option .algo-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+/* ─── Container type toggle ───────────────── */
+.type-toggle {
+    display: flex;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.type-toggle button {
+    flex: 1;
+    padding: 5px 8px;
+    border: none;
+    background: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    color: #495057;
+}
+
+.type-toggle button.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+}
+
+/* ─── Viewer area ─────────────────────────── */
+#viewer-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#canvas-wrapper {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background: #f8f9fa;
+}
+
+#canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ─── Stats bar ───────────────────────────── */
+#stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border-color);
+    background: #f8f9fa;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.stat-value {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.95rem;
+}
+
+.stat-label {
+    color: var(--text-muted);
+}
+
+/* ─── Unpacked alert ──────────────────────── */
+#unpacked-alert {
+    display: none;
+    padding: 7px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    color: #664d03;
+    flex-shrink: 0;
+}
+
+/* ─── Box list ────────────────────────────── */
+#box-list-section {
+    flex-shrink: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#box-list-section .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+#box-table {
+    font-size: 0.78rem;
+    margin: 0;
+}
+
+#box-table th {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 5px 8px;
+    background: #f8f9fa;
+    position: sticky;
+    top: 0;
+}
+
+#box-table td {
+    padding: 4px 8px;
+    vertical-align: middle;
+}
+
+.color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.badge-constraint {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: white;
+    margin: 1px;
+    display: inline-block;
+}
+
+.badge-fragile { background: var(--badge-fragile); }
+.badge-orientation { background: var(--badge-orientation); }
+.badge-group { background: var(--badge-group); }
+.badge-isolated { background: var(--badge-isolated); }
+
+.btn-delete-box {
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
+/* ─── Constraint accordion ────────────────── */
+.constraints-toggle {
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--accent);
+    text-decoration: underline;
+    border: none;
+    background: none;
+    padding: 0;
+    margin-top: 6px;
+}
+
+#constraints-panel {
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    margin-top: 6px;
+    background: #fafbfd;
+}
+
+/* ─── Spinner overlay ─────────────────────── */
+.spinner-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 8px;
+}
+
+.spinner-overlay.active {
+    display: flex;
+}
+
+/* ─── Scrollbar styling ───────────────────── */
+#sidebar::-webkit-scrollbar,
+#box-list-section::-webkit-scrollbar {
+    width: 5px;
+}
+
+#sidebar::-webkit-scrollbar-thumb,
+#box-list-section::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+/* ─── Responsive ──────────────────────────── */
+@media (max-width: 768px) {
+    #app-body {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+    }
+
+    #sidebar {
+        width: 100%;
+        max-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    #main-area {
+        height: 80vw;
+        min-height: 300px;
+    }
+
+    #canvas-wrapper {
+        flex: 1;
+    }
+}
