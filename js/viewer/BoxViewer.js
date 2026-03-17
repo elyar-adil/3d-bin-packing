@@ -18,8 +18,7 @@ export class BoxViewer {
         this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-        this.renderer.physicallyCorrectLights = true;
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        // physicallyCorrectLights / outputEncoding omitted: incompatible with Three.js r81
 
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xf0f2f5);
@@ -39,9 +38,9 @@ export class BoxViewer {
     }
 
     _setupLights() {
-        this.scene.add(new THREE.AmbientLight(0xfff4e0, 0.55));
+        this.scene.add(new THREE.AmbientLight(0xfff4e0, 0.75));
 
-        const key = new THREE.DirectionalLight(0xfffaf0, 0.90);
+        const key = new THREE.DirectionalLight(0xfffaf0, 1.10);
         key.position.set(400, 600, 500);
         key.castShadow = true;
         key.shadow.mapSize.width  = 2048;
