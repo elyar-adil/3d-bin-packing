@@ -13,7 +13,7 @@ export class BoxViewer {
         this.canvas = canvas;
 
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-        this.renderer.setClearColor(0xffffff);
+        this.renderer.setClearColor(0xc8cdd4);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         this.renderer.shadowMap.enabled = true;
@@ -21,7 +21,7 @@ export class BoxViewer {
         // physicallyCorrectLights / outputEncoding omitted: incompatible with Three.js r81
 
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xffffff);
+        this.scene.background = new THREE.Color(0xc8cdd4);
 
         this.camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight);
         this.camera.position.set(200, 200, 300);
