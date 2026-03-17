@@ -42,7 +42,7 @@ export class RenderableContainer extends Container {
         const yOffset = this.palletHeight;
         this.mesh.scale.set(width, height, depth);
         this.mesh.position.set(width / 2, height / 2 + yOffset, depth / 2);
-        this.mesh.material.color.setHex(this.isPallet ? 0x777766 : 0x3355aa);
+        this.mesh.material.color.setHex(this.isPallet ? 0x777766 : 0x555a60);
 
         this.viewer.controls.target.set(width / 2, (height + yOffset) / 2, depth / 2);
         this._rebuildDetail();
@@ -121,11 +121,12 @@ export class RenderableContainer extends Container {
         const baseTex = TextureFactory.getMetalTexture();
         const TILE = 90;
 
+        // ── Floor (checker-plate steel, neutral gray) ─────────────────────────
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(W, D),
             new THREE.MeshStandardMaterial({
                 map: cloneTex(baseTex, W / TILE, D / TILE),
-                color: 0x5a8060, roughness: 0.75, metalness: 0.35, side: THREE.FrontSide
+                color: 0xa0a6ac, roughness: 0.80, metalness: 0.40, side: THREE.FrontSide
             })
         );
         floor.rotation.x = -Math.PI / 2;
@@ -133,11 +134,24 @@ export class RenderableContainer extends Container {
         floor.receiveShadow = true;
         group.add(floor);
 
-        // Very low opacity so interior is clearly visible through the walls
+        // ── Ceiling (semi-transparent, white corrugated steel) ────────────────
+        const ceiling = new THREE.Mesh(
+            new THREE.PlaneGeometry(W, D),
+            new THREE.MeshStandardMaterial({
+                map: cloneTex(baseTex, W / TILE, D / TILE),
+                color: 0xf2f4f6, roughness: 0.60, metalness: 0.35,
+                transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false
+            })
+        );
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.set(W / 2, yOff + H, D / 2);
+        group.add(ceiling);
+
+        // ── Walls (semi-transparent white corrugated steel) ───────────────────
         const mkWall = (rx, ry) => new THREE.MeshStandardMaterial({
             map: cloneTex(baseTex, rx, ry),
-            color: 0xffffff, roughness: 0.65, metalness: 0.40,
-            transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false
+            color: 0xf0f2f5, roughness: 0.55, metalness: 0.45,
+            transparent: true, opacity: 0.20, side: THREE.DoubleSide, depthWrite: false
         });
 
         const addWall = (geo, mat, pos, rotY = 0) => {
@@ -154,6 +168,32 @@ export class RenderableContainer extends Container {
         const sGeo = new THREE.PlaneGeometry(D, H);
         addWall(sGeo,        mkWall(D / TILE, H / TILE), new THREE.Vector3(0,   H/2+yOff, D/2), Math.PI / 2);
         addWall(sGeo.clone(), mkWall(D / TILE, H / TILE), new THREE.Vector3(W,   H/2+yOff, D/2), -Math.PI / 2);
+
+        // ── Corner posts (steel columns at 4 vertical edges) ─────────────────
+        const pt = Math.max(3, Math.min(W, D) * 0.028);
+        const postMat = new THREE.MeshStandardMaterial({ color: 0xc4c9d0, roughness: 0.45, metalness: 0.65 });
+        for (const [cx, cz] of [[pt/2,pt/2],[W-pt/2,pt/2],[pt/2,D-pt/2],[W-pt/2,D-pt/2]]) {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(pt, H, pt), postMat);
+            post.position.set(cx, yOff + H/2, cz);
+            post.castShadow = true;
+            group.add(post);
+        }
+
+        // ── Horizontal top & bottom rails (4 edges each) ─────────────────────
+        const rt = pt * 0.75;
+        const railMat = new THREE.MeshStandardMaterial({ color: 0xb5bcc5, roughness: 0.40, metalness: 0.70 });
+        for (const ry of [yOff + rt / 2, yOff + H - rt / 2]) {
+            for (const rz of [rt / 2, D - rt / 2]) {
+                const r = new THREE.Mesh(new THREE.BoxGeometry(W, rt, rt), railMat);
+                r.position.set(W / 2, ry, rz);
+                group.add(r);
+            }
+            for (const rx of [rt / 2, W - rt / 2]) {
+                const r = new THREE.Mesh(new THREE.BoxGeometry(rt, rt, D), railMat);
+                r.position.set(rx, ry, D / 2);
+                group.add(r);
+            }
+        }
 
         return group;
     }

@@ -116,49 +116,54 @@ export class TextureFactory {
         return tex;
     }
 
-    // ── Corrugated steel — shipping container walls ────────────────────────────
+    // ── Corrugated steel — white shipping container walls ─────────────────────
     static _makeMetal() {
         const S = 512, cv = document.createElement('canvas');
         cv.width = cv.height = S;
         const ctx = cv.getContext('2d');
 
-        ctx.fillStyle = '#3d6b4a';
+        // Light gray/white base — standard white painted shipping container
+        ctx.fillStyle = '#d8dce2';
         ctx.fillRect(0, 0, S, S);
 
+        // Vertical corrugation ridges with highlight + shadow
         for (let x = 0; x < S; x += 28) {
             const g = ctx.createLinearGradient(x, 0, x + 28, 0);
             g.addColorStop(0,    'rgba(0,0,0,0.0)');
-            g.addColorStop(0.10, 'rgba(255,255,255,0.24)');
-            g.addColorStop(0.35, 'rgba(255,255,255,0.07)');
-            g.addColorStop(0.65, 'rgba(0,0,0,0.16)');
+            g.addColorStop(0.10, 'rgba(255,255,255,0.40)');
+            g.addColorStop(0.35, 'rgba(255,255,255,0.10)');
+            g.addColorStop(0.65, 'rgba(0,0,0,0.12)');
             g.addColorStop(1,    'rgba(0,0,0,0.0)');
             ctx.fillStyle = g;
             ctx.fillRect(x, 0, 28, S);
         }
+        // Horizontal structural ribs
         for (let y = 0; y < S; y += 90) {
-            ctx.strokeStyle = 'rgba(0,0,0,0.42)'; ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke();
-            ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(0, y + 5); ctx.lineTo(S, y + 5); ctx.stroke();
         }
+        // Rivets
         for (let y = 45; y < S; y += 90) {
             for (let x = 14; x < S; x += 28) {
-                ctx.fillStyle = 'rgba(0,0,0,0.32)';
+                ctx.fillStyle = 'rgba(0,0,0,0.20)';
                 ctx.beginPath(); ctx.arc(x, y, 2.8, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = 'rgba(255,255,255,0.18)';
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
                 ctx.beginPath(); ctx.arc(x - 0.6, y - 0.6, 1.4, 0, Math.PI * 2); ctx.fill();
             }
         }
-        for (let s = 0; s < 18; s++) {
+        // Subtle scratch marks
+        for (let s = 0; s < 12; s++) {
             const sx = Math.random() * S;
-            ctx.strokeStyle = `rgba(255,255,255,${(0.03 + Math.random() * 0.05).toFixed(3)})`;
+            ctx.strokeStyle = `rgba(255,255,255,${(0.05 + Math.random() * 0.07).toFixed(3)})`;
             ctx.lineWidth = 0.5;
             ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + (Math.random()-0.5) * 8, S); ctx.stroke();
         }
 
         const id = ctx.getImageData(0, 0, S, S), d = id.data;
         for (let i = 0; i < d.length; i += 4) {
-            const n = (Math.random() - 0.5) * 14;
+            const n = (Math.random() - 0.5) * 10;
             d[i]   = Math.max(0, Math.min(255, d[i]   + n));
             d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
             d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
