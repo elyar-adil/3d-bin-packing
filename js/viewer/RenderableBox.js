@@ -47,7 +47,7 @@ export class RenderableBox extends Box {
             polygonOffsetUnits:  1
         });
 
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const geometry = new THREE.BoxBufferGeometry(1, 1, 1);
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.castShadow    = true;
         this.mesh.receiveShadow = true;
