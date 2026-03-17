@@ -1,0 +1,86 @@
+/*
+    "Commons Clause" License Condition v1.0
+    License: GPL-3.0 | Licensor: Elyar Adil
+*/
+
+/* global THREE, OrbitControls */
+
+import { resetGroupColors } from './groupColors.js';
+
+/** Three.js WebGL renderer + scene + camera + OrbitControls wrapper. */
+export class BoxViewer {
+    constructor(canvas) {
+        this.canvas = canvas;
+
+        this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        this.renderer.setClearColor(0xf0f2f5);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+        this.renderer.physicallyCorrectLights = true;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0xf0f2f5);
+
+        this.camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight);
+        this.camera.position.set(200, 200, 300);
+
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.5;
+        this.controls.enableZoom   = true;
+
+        this._setupLights();
+
+        this.boxes     = [];
+        this.container = null;
+    }
+
+    _setupLights() {
+        this.scene.add(new THREE.AmbientLight(0xfff4e0, 0.55));
+
+        const key = new THREE.DirectionalLight(0xfffaf0, 0.90);
+        key.position.set(400, 600, 500);
+        key.castShadow = true;
+        key.shadow.mapSize.width  = 2048;
+        key.shadow.mapSize.height = 2048;
+        key.shadow.camera.near    = 1;
+        key.shadow.camera.far     = 3000;
+        key.shadow.camera.left    = -800;
+        key.shadow.camera.right   =  800;
+        key.shadow.camera.top     =  800;
+        key.shadow.camera.bottom  = -800;
+        key.shadow.bias           = -0.001;
+        this.scene.add(key);
+
+        const fill = new THREE.DirectionalLight(0xd0e8ff, 0.55);
+        fill.position.set(-400, 350, -400);
+        this.scene.add(fill);
+
+        const rim = new THREE.DirectionalLight(0xffe8c0, 0.30);
+        rim.position.set(100, -200, -300);
+        this.scene.add(rim);
+    }
+
+    resize() {
+        const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+        this.renderer.setSize(w, h);
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+    }
+
+    clearBoxes() {
+        for (const b of this.boxes) b.removeFromScene();
+        this.boxes = [];
+        resetGroupColors();
+    }
+
+    update() {
+        const palletHeight = this.container ? this.container.palletHeight : 0;
+        this.boxes.forEach(b => b.updateMesh(palletHeight));
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+    }
+}

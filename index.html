@@ -25,20 +25,18 @@
         <!-- ─── Sidebar ─────────────────────────────── -->
         <div id="sidebar">
 
-            <!-- Section 1: Container Setup -->
+            <!-- Panel 1: Container Setup -->
             <div class="panel-card">
-                <div class="panel-header" id="hdr-container" onclick="togglePanel('panel-container', this)">
+                <div class="panel-header" id="hdr-container">
                     &#x1F4E6; 容器设置
                     <span class="toggle-icon">&#9660;</span>
                 </div>
                 <div class="panel-body" id="panel-container">
-                    <!-- Container / Pallet toggle -->
                     <div class="type-toggle">
                         <button id="btn-type-container" class="active" onclick="setContainerType('container')">容器</button>
-                        <button id="btn-type-pallet" onclick="setContainerType('pallet')">托盘</button>
+                        <button id="btn-type-pallet"               onclick="setContainerType('pallet')">托盘</button>
                     </div>
 
-                    <!-- Container presets (shown when container selected) -->
                     <div id="container-presets-row">
                         <label class="form-label">预设</label>
                         <select class="form-control" id="container-preset" onchange="applyContainerPreset()">
@@ -49,7 +47,6 @@
                         </select>
                     </div>
 
-                    <!-- Pallet presets (shown when pallet selected) -->
                     <div id="pallet-presets-row" style="display:none;">
                         <label class="form-label">托盘规格</label>
                         <select class="form-control" id="pallet-preset" onchange="applyPalletPreset()">
@@ -79,7 +76,6 @@
                         </div>
                     </div>
 
-                    <!-- Pallet deck height (only for pallet) -->
                     <div id="deck-height-row" style="display:none; margin-top:6px;">
                         <label class="form-label">托盘板高度 (cm)</label>
                         <input class="form-control" id="cont-deck-h" type="number" step="0.1" value="14.4" min="0">
@@ -94,9 +90,9 @@
                 </div>
             </div>
 
-            <!-- Section 2: Add Box -->
+            <!-- Panel 2: Add Box -->
             <div class="panel-card">
-                <div class="panel-header" id="hdr-addbox" onclick="togglePanel('panel-addbox', this)">
+                <div class="panel-header" id="hdr-addbox">
                     &#x2795; 添加箱子
                     <span class="toggle-icon">&#9660;</span>
                 </div>
@@ -194,9 +190,9 @@
                 </div>
             </div>
 
-            <!-- Section 3: Algorithm -->
+            <!-- Panel 3: Algorithm -->
             <div class="panel-card">
-                <div class="panel-header" id="hdr-algo" onclick="togglePanel('panel-algo', this)">
+                <div class="panel-header" id="hdr-algo">
                     &#x2699;&#xFE0F; 算法选择
                     <span class="toggle-icon">&#9660;</span>
                 </div>
@@ -240,9 +236,9 @@
         <!-- ─── Main Area ────────────────────────────── -->
         <div id="main-area">
 
-            <!-- Viewer card -->
+            <!-- 3D Viewer -->
             <div class="panel-card" id="viewer-card">
-                <div class="panel-header" style="cursor:default;">
+                <div class="panel-header" style="cursor:default; pointer-events:none;">
                     &#x1F5C2;&#xFE0F; 3D 视图 &nbsp;
                     <small style="font-weight:400; color:#6c757d;">拖动旋转 · 滚轮缩放</small>
                 </div>
@@ -276,13 +272,13 @@
 
             <!-- Box list -->
             <div class="panel-card" id="box-list-section">
-                <div class="panel-header" id="hdr-boxlist" onclick="togglePanel('panel-boxlist', this)">
+                <div class="panel-header" id="hdr-boxlist">
                     &#x1F4CB; 箱子列表
                     <span id="box-count-badge" style="margin-left:6px; font-size:0.75rem; background:#e9ecef; border-radius:10px; padding:1px 7px;">0</span>
-                    <button class="btn btn-sm btn-outline-danger btn-apply ml-auto" style="font-size:0.7rem; padding:1px 8px;" onclick="clearAllBoxes(event)">清空全部</button>
+                    <button class="btn btn-sm btn-outline-danger btn-apply ml-auto drag-ignore" style="font-size:0.7rem; padding:1px 8px;" onclick="clearAllBoxes(event)">清空全部</button>
                     <span class="toggle-icon" style="margin-left:6px;">&#9660;</span>
                 </div>
-                <div id="panel-boxlist">
+                <div class="panel-body panel-body-scroll" id="panel-boxlist" style="padding:0;">
                     <table class="table table-sm" id="box-table">
                         <thead>
                             <tr>
@@ -294,8 +290,7 @@
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody id="box-table-body">
-                        </tbody>
+                        <tbody id="box-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -310,360 +305,6 @@
 
 <script src="./js/lib/three.js"></script>
 <script src="./js/lib/OrbitControls.js"></script>
-
-<script type="module">
-import {
-    BinPackingSolver, HeuristicSolver, GuillotineSolver, MaximalSpacesSolver, SimulatedAnnealingSolver,
-    Vector3D, Box, Container, Pallet,
-    BOX_PRESETS, CONTAINER_PRESETS, PALLET_PRESETS
-} from './js/BinPackingSolver.js';
-
-import { BoxViewer, RenderableBox, RenderableContainer, resetGroupColors } from './js/BoxViewer.js';
-
-// ─── State ────────────────────────────────────────────────────────
-let boxViewer, renderableContainer;
-let appBoxes = [];        // Array of { renderableBox, color, qty: 1, ... }
-let boxRowIdCounter = 0;
-
-let currentContainerType = 'container';  // 'container' | 'pallet'
-let selectedAlgo = 'heuristic';
-
-// Color palette for added box groups
-const COLOR_PALETTE = [
-    '#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f',
-    '#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac',
-    '#2ecc71','#e74c3c','#3498db','#9b59b6','#f39c12',
-    '#1abc9c','#e67e22','#d35400','#27ae60','#8e44ad'
-];
-let colorIndex = 0;
-function nextColor() {
-    return COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length];
-}
-
-// ─── Init ──────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-    initViewer();
-    applyContainer();
-    setupResize();
-});
-
-function initViewer() {
-    const canvas = document.getElementById('canvas');
-    boxViewer = new BoxViewer(canvas);
-    renderableContainer = new RenderableContainer(boxViewer);
-
-    (function animate() {
-        boxViewer.update();
-        requestAnimationFrame(animate);
-    })();
-}
-
-function setupResize() {
-    const observer = new ResizeObserver(() => {
-        if (boxViewer) boxViewer.resize();
-    });
-    observer.observe(document.getElementById('canvas-wrapper'));
-}
-
-// ─── Panel toggle ──────────────────────────────────────────────────
-window.togglePanel = function(panelId, header) {
-    const panel = document.getElementById(panelId);
-    if (!panel) return;
-    const isVisible = panel.style.display !== 'none';
-    panel.style.display = isVisible ? 'none' : '';
-    if (header) header.classList.toggle('collapsed', isVisible);
-};
-
-// ─── Container type toggle ─────────────────────────────────────────
-window.setContainerType = function(type) {
-    currentContainerType = type;
-    document.getElementById('btn-type-container').classList.toggle('active', type === 'container');
-    document.getElementById('btn-type-pallet').classList.toggle('active', type === 'pallet');
-    document.getElementById('container-presets-row').style.display = type === 'container' ? '' : 'none';
-    document.getElementById('pallet-presets-row').style.display = type === 'pallet' ? '' : 'none';
-    document.getElementById('deck-height-row').style.display = type === 'pallet' ? '' : 'none';
-
-    if (type === 'pallet') {
-        // Default EUR pallet
-        document.getElementById('pallet-preset').value = 'EUR';
-        applyPalletPreset();
-    } else {
-        document.getElementById('container-preset').value = '';
-    }
-};
-
-window.applyContainerPreset = function() {
-    const idx = document.getElementById('container-preset').value;
-    if (idx === '') return;
-    const p = CONTAINER_PRESETS[parseInt(idx)];
-    document.getElementById('cont-w').value = p.width;
-    document.getElementById('cont-h').value = p.height;
-    document.getElementById('cont-d').value = p.depth;
-    document.getElementById('cont-maxweight').value = p.maxWeight || 30000;
-    applyContainer();
-};
-
-window.applyPalletPreset = function() {
-    const key = document.getElementById('pallet-preset').value;
-    if (!key) return;
-    const p = PALLET_PRESETS[key];
-    document.getElementById('cont-w').value = p.width;
-    document.getElementById('cont-h').value = p.height;
-    document.getElementById('cont-d').value = p.depth;
-    document.getElementById('cont-deck-h').value = p.deckHeight;
-    document.getElementById('cont-maxweight').value = p.maxWeight;
-    applyContainer();
-};
-
-window.applyContainer = function() {
-    const w = parseFloat(document.getElementById('cont-w').value) || 300;
-    const h = parseFloat(document.getElementById('cont-h').value) || 250;
-    const d = parseFloat(document.getElementById('cont-d').value) || 250;
-    const maxWeight = parseFloat(document.getElementById('cont-maxweight').value) || Infinity;
-    const isPallet = currentContainerType === 'pallet';
-    const deckHeight = isPallet ? (parseFloat(document.getElementById('cont-deck-h').value) || 0) : 0;
-
-    // Interior height = h - deckHeight for pallet
-    const interiorH = isPallet ? Math.max(1, h - deckHeight) : h;
-
-    renderableContainer.makeEmpty();
-    renderableContainer.changeSize(w, interiorH, d, { isPallet, palletHeight: deckHeight, maxWeight });
-};
-
-// ─── Box presets ───────────────────────────────────────────────────
-window.applyBoxPreset = function() {
-    const idx = document.getElementById('box-preset').value;
-    if (idx === '') return;
-    const p = BOX_PRESETS[parseInt(idx)];
-    document.getElementById('box-w').value = p.width;
-    document.getElementById('box-h').value = p.height;
-    document.getElementById('box-d').value = p.depth;
-    document.getElementById('box-weight').value = p.weight || 0;
-    document.getElementById('box-maxwtop').value = p.maxWeightOnTop || 0;
-    document.getElementById('box-label').value = p.label || '';
-};
-
-// ─── Add boxes ─────────────────────────────────────────────────────
-window.addBoxes = function() {
-    const w = parseFloat(document.getElementById('box-w').value);
-    const h = parseFloat(document.getElementById('box-h').value);
-    const d = parseFloat(document.getElementById('box-d').value);
-    const qty = parseInt(document.getElementById('box-qty').value) || 1;
-    const weight = parseFloat(document.getElementById('box-weight').value) || 0;
-    const maxWeightOnTop = parseFloat(document.getElementById('box-maxwtop').value);
-    const fragile = document.getElementById('box-fragile').checked;
-    const orientationConstraint = document.getElementById('box-orientation').value;
-    const group = document.getElementById('box-group').value.trim() || null;
-    const isolated = document.getElementById('box-isolated').checked;
-    const label = document.getElementById('box-label').value.trim();
-
-    if (!w || !h || !d || w <= 0 || h <= 0 || d <= 0) {
-        alert('请输入有效的箱子尺寸');
-        return;
-    }
-
-    const color = nextColor();
-
-    for (let i = 0; i < qty; i++) {
-        const box = new RenderableBox(color, boxViewer, w, h, d, {
-            weight,
-            maxWeightOnTop: isNaN(maxWeightOnTop) ? Infinity : maxWeightOnTop,
-            fragile,
-            orientationConstraint,
-            group,
-            isolated,
-            label: label || `${w}×${h}×${d}`
-        });
-        box.visible = false;
-        appBoxes.push(box);
-    }
-
-    addBoxRow(color, w, h, d, qty, weight, { fragile, orientationConstraint, group, isolated, label });
-    updateBoxCountBadge();
-};
-
-function addBoxRow(color, w, h, d, qty, weight, constraints) {
-    const id = `box-row-${boxRowIdCounter++}`;
-    const tbody = document.getElementById('box-table-body');
-
-    let badges = '';
-    if (constraints.fragile) badges += `<span class="badge-constraint badge-fragile">&#x26A0; 易碎</span>`;
-    if (constraints.orientationConstraint && constraints.orientationConstraint !== 'FREE') {
-        const oriLabel = constraints.orientationConstraint === 'UPRIGHT' ? '直立' : '固定';
-        badges += `<span class="badge-constraint badge-orientation">${oriLabel}</span>`;
-    }
-    if (constraints.group) badges += `<span class="badge-constraint badge-group">&#x1F4CC; ${constraints.group}</span>`;
-    if (constraints.isolated) badges += `<span class="badge-constraint badge-isolated">隔离</span>`;
-
-    const qtyText = qty > 1 ? ` &times;${qty}` : '';
-    const displayLabel = constraints.label || `${w}&times;${h}&times;${d}`;
-
-    const tr = document.createElement('tr');
-    tr.id = id;
-    tr.innerHTML = `
-        <td><span class="color-dot" style="background:${color};"></span></td>
-        <td>${displayLabel}${qtyText}</td>
-        <td>${w}&times;${h}&times;${d}</td>
-        <td>${weight}kg</td>
-        <td>${badges || '<span style="color:#aaa;">—</span>'}</td>
-        <td><button class="btn btn-sm btn-outline-danger btn-delete-box" onclick="deleteBoxRow('${id}', ${qty})">&#x2715;</button></td>
-    `;
-    tbody.appendChild(tr);
-}
-
-window.deleteBoxRow = function(rowId, qty) {
-    // Remove the last `qty` boxes that were added (heuristic: remove last qty from appBoxes)
-    // Since we add in order, remove qty boxes from end of appBoxes
-    const removed = appBoxes.splice(appBoxes.length - qty, qty);
-    for (const b of removed) b.removeFromScene();
-    const row = document.getElementById(rowId);
-    if (row) row.remove();
-    updateBoxCountBadge();
-};
-
-window.clearAllBoxes = function(event) {
-    if (event) event.stopPropagation();
-    for (const b of appBoxes) b.removeFromScene();
-    appBoxes = [];
-    document.getElementById('box-table-body').innerHTML = '';
-    updateBoxCountBadge();
-    resetGroupColors();
-    colorIndex = 0;
-    renderableContainer.makeEmpty();
-    updateStats(null, 0);
-};
-
-function updateBoxCountBadge() {
-    document.getElementById('box-count-badge').textContent = appBoxes.length;
-}
-
-// ─── Constraints toggle ────────────────────────────────────────────
-window.toggleConstraints = function() {
-    const panel = document.getElementById('constraints-panel');
-    const btn = document.getElementById('constraints-toggle-btn');
-    const isVisible = panel.style.display !== 'none';
-    panel.style.display = isVisible ? 'none' : '';
-    btn.innerHTML = (isVisible ? '&#9656;' : '&#9662;') + ' 高级约束设置';
-};
-
-// ─── Algorithm selection ───────────────────────────────────────────
-window.selectAlgo = function(algoKey, el) {
-    selectedAlgo = algoKey;
-    document.querySelectorAll('.algo-option').forEach(o => {
-        o.classList.remove('selected');
-        o.querySelector('input[type=radio]').checked = false;
-    });
-    el.classList.add('selected');
-    el.querySelector('input[type=radio]').checked = true;
-};
-
-// ─── Solve ─────────────────────────────────────────────────────────
-window.doSolve = function() {
-    if (appBoxes.length === 0) {
-        alert('请先添加箱子');
-        return;
-    }
-
-    // UI: show spinner
-    document.getElementById('solve-button').disabled = true;
-    document.getElementById('spinner').style.display = 'inline-block';
-    document.getElementById('solve-icon').style.display = 'none';
-    document.getElementById('spinner-overlay').classList.add('active');
-    document.getElementById('unpacked-alert').style.display = 'none';
-
-    // Hide all boxes
-    appBoxes.forEach(b => { b.visible = false; });
-    renderableContainer.makeEmpty();
-
-    setTimeout(() => {
-        try {
-            solveInternal();
-        } catch(e) {
-            console.error('Solve error:', e);
-            alert('求解出错: ' + e.message);
-        } finally {
-            document.getElementById('solve-button').disabled = false;
-            document.getElementById('spinner').style.display = 'none';
-            document.getElementById('solve-icon').style.display = '';
-            document.getElementById('spinner-overlay').classList.remove('active');
-        }
-    }, 20);
-};
-
-function solveInternal() {
-    const container = renderableContainer;
-
-    // Clone boxes for solver (solver may mutate position/orientation)
-    const boxesForSolver = appBoxes.map(b => b);
-
-    let solver;
-    switch (selectedAlgo) {
-        case 'guillotine':
-            solver = new GuillotineSolver(container, boxesForSolver);
-            break;
-        case 'maxspaces':
-            solver = new MaximalSpacesSolver(container, boxesForSolver);
-            break;
-        case 'annealing':
-            solver = new SimulatedAnnealingSolver(container, boxesForSolver);
-            break;
-        case 'heuristic':
-        default:
-            solver = new HeuristicSolver(container, boxesForSolver);
-            break;
-    }
-
-    const unpackedBoxes = solver.solve();
-
-    // Animate boxes appearing one by one
-    const packedBoxes = container.boxes;
-    let i = 0;
-    function animStep() {
-        if (i < packedBoxes.length) {
-            packedBoxes[i].visible = true;
-            i++;
-            setTimeout(animStep, 80);
-        }
-    }
-    if (packedBoxes.length > 0) animStep();
-
-    // Stats
-    const stats = container.getStats();
-    updateStats(stats, appBoxes.length);
-
-    // Unpacked warning
-    if (unpackedBoxes.length > 0) {
-        document.getElementById('unpacked-alert').style.display = 'block';
-        document.getElementById('unpacked-msg').textContent =
-            `${unpackedBoxes.length} 个箱子无法放入容器`;
-    }
-}
-
-function updateStats(stats, totalBoxes) {
-    if (!stats) {
-        document.getElementById('stat-util').textContent = '—';
-        document.getElementById('stat-boxes').textContent = '0';
-        document.getElementById('stat-boxes-total').textContent = '';
-        document.getElementById('stat-weight').textContent = '0';
-        return;
-    }
-    document.getElementById('stat-util').textContent = stats.utilization;
-    document.getElementById('stat-boxes').textContent = stats.boxCount;
-    document.getElementById('stat-boxes-total').textContent = totalBoxes ? `/ ${totalBoxes}` : '';
-    document.getElementById('stat-weight').textContent = stats.totalWeight;
-}
-
-// Expose needed for inline onclick handlers in HTML
-window.BOX_PRESETS = BOX_PRESETS;
-window.CONTAINER_PRESETS = CONTAINER_PRESETS;
-window.PALLET_PRESETS = PALLET_PRESETS;
-
-// Make solver classes accessible
-window.HeuristicSolver = HeuristicSolver;
-window.GuillotineSolver = GuillotineSolver;
-window.MaximalSpacesSolver = MaximalSpacesSolver;
-window.SimulatedAnnealingSolver = SimulatedAnnealingSolver;
-
-</script>
+<script type="module" src="./js/main.js"></script>
 </body>
 </html>
