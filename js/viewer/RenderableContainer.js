@@ -133,10 +133,11 @@ export class RenderableContainer extends Container {
         floor.receiveShadow = true;
         group.add(floor);
 
+        // Very low opacity so interior is clearly visible through the walls
         const mkWall = (rx, ry) => new THREE.MeshStandardMaterial({
             map: cloneTex(baseTex, rx, ry),
-            color: 0x4a7055, roughness: 0.65, metalness: 0.40,
-            transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false
+            color: 0xffffff, roughness: 0.65, metalness: 0.40,
+            transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false
         });
 
         const addWall = (geo, mat, pos, rotY = 0) => {

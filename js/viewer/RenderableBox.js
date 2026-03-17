@@ -27,12 +27,18 @@ export class RenderableBox extends Box {
         const TILE = 40; // cm per texture tile
         const baseTex = TextureFactory.getCardboardTexture();
 
-        // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
-        const rW = width / TILE, rH = height / TILE, rD = depth / TILE;
-        const mkMat = (rx, ry) => new THREE.MeshStandardMaterial({
-            map:                 cloneTex(baseTex, rx, ry),
-            color:               finalColor,
-            opacity:             options.fragile ? 0.80 : 1.0,
+        // Use white color so the cardboard texture shows its natural warm brown.
+        // Group identity is conveyed via a subtle emissive tint + colored edge lines.
+        // (Multiplying the group color directly onto the texture would produce near-black.)
+        const emissiveColor = new THREE.Color(finalColor).multiplyScalar(0.22);
+        const tex = cloneTex(baseTex,
+            Math.max(1, (width + depth) * 0.5 / TILE),
+            Math.max(1, height / TILE));
+        const material = new THREE.MeshStandardMaterial({
+            map:                 tex,
+            color:               0xffffff,      // white → texture shows naturally
+            emissive:            emissiveColor, // soft group-color glow
+            opacity:             options.fragile ? 0.78 : 1.0,
             metalness:           0.0,
             roughness:           0.82,
             transparent:         !!options.fragile,
@@ -41,19 +47,14 @@ export class RenderableBox extends Box {
             polygonOffsetUnits:  1
         });
 
-        const materials = [
-            mkMat(rD, rH), mkMat(rD, rH),  // ±X
-            mkMat(rW, rD), mkMat(rW, rD),  // ±Y
-            mkMat(rW, rH), mkMat(rW, rH),  // ±Z
-        ];
-
         const geometry = new THREE.BoxGeometry(1, 1, 1);
-        this.mesh = new THREE.Mesh(geometry, materials);
+        this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.castShadow    = true;
         this.mesh.receiveShadow = true;
         this.mesh.visible       = false;
 
-        const edgeMat = new THREE.LineBasicMaterial({ color: 0x2a1a0a, opacity: 0.55, transparent: true });
+        // Edge lines use group color — primary visual identifier for each box group
+        const edgeMat = new THREE.LineBasicMaterial({ color: finalColor, opacity: 0.85, transparent: true });
         this.edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMat);
         this.mesh.add(this.edges);
 
@@ -86,7 +87,8 @@ export class RenderableBox extends Box {
     removeFromScene() {
         if (!this.viewer || !this.mesh) return;
         this.viewer.scene.remove(this.mesh);
-        const mats = Array.isArray(this.mesh.material) ? this.mesh.material : [this.mesh.material];
-        mats.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+        const m = this.mesh.material;
+        if (m && m.map) m.map.dispose();
+        if (m) m.dispose();
     }
 }
