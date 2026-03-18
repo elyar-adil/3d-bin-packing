@@ -256,6 +256,23 @@
                         </div>
                     </div>
                 </div>
+                <!-- Step-by-step playback controls (shown after solve) -->
+                <div id="step-controls" style="display:none;">
+                    <button class="step-btn" id="btn-step-first" onclick="stepFirst()" title="第一步">⏮</button>
+                    <button class="step-btn" id="btn-step-prev"  onclick="stepPrev()"  title="上一步">◀</button>
+                    <button class="step-btn step-play" id="btn-step-play" onclick="togglePlay()" title="播放/暂停">▶</button>
+                    <button class="step-btn" id="btn-step-next"  onclick="stepNext()"  title="下一步">▶|</button>
+                    <button class="step-btn" id="btn-step-last"  onclick="stepLast()"  title="最后一步">⏭</button>
+                    <input  class="step-slider" id="step-slider" type="range" min="0" max="0" value="0"
+                            oninput="onStepSlider(this.value)">
+                    <span class="step-label" id="step-label">0 / 0</span>
+                    <span class="step-speed-wrap" title="播放间隔">
+                        <input class="step-speed" id="speed-slider" type="range" min="100" max="2000" value="600" step="100"
+                               oninput="onSpeedChange(this.value)">
+                        <span id="speed-label">600ms</span>
+                    </span>
+                </div>
+
                 <div id="stats-bar">
                     <div class="stat-item">
                         <span class="stat-label">装箱率</span>
