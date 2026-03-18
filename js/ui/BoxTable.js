@@ -38,7 +38,7 @@ export class BoxTable {
             <td>${w}&times;${h}&times;${d}</td>
             <td>${weight}kg</td>
             <td>${badges || '<span style="color:#aaa;">—</span>'}</td>
-            <td><button class="btn btn-sm btn-outline-danger btn-delete-box"
+            <td><button class="btn-delete-box"
                     data-row-id="${id}" data-qty="${qty}">&#x2715;</button></td>
         `;
         tr.querySelector('button').addEventListener('click', () => {

@@ -13,7 +13,7 @@ export class BoxViewer {
         this.canvas = canvas;
 
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-        this.renderer.setClearColor(0xc8cdd4);
+        this.renderer.setClearColor(0xdde2e8);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         this.renderer.shadowMap.enabled = true;
@@ -21,7 +21,9 @@ export class BoxViewer {
         // physicallyCorrectLights / outputEncoding omitted: incompatible with Three.js r81
 
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xc8cdd4);
+        this.scene.background = new THREE.Color(0xdde2e8);
+        // Subtle exponential fog gives depth without obscuring boxes
+        this.scene.fog = new THREE.FogExp2(0xdde2e8, 0.0006);
 
         this.camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight);
         this.camera.position.set(200, 200, 300);
@@ -32,9 +34,25 @@ export class BoxViewer {
         this.controls.enableZoom   = true;
 
         this._setupLights();
+        this._addGroundPlane();
 
         this.boxes     = [];
         this.container = null;
+    }
+
+    /** Large white infinite-ish ground plane that receives shadows. */
+    _addGroundPlane() {
+        const geo = new THREE.PlaneGeometry(8000, 8000);
+        const mat = new THREE.MeshStandardMaterial({
+            color:     0xffffff,
+            roughness: 0.92,
+            metalness: 0.0
+        });
+        const plane = new THREE.Mesh(geo, mat);
+        plane.rotation.x    = -Math.PI / 2;
+        plane.position.y    = 0;
+        plane.receiveShadow = true;
+        this.scene.add(plane);
     }
 
     _setupLights() {
@@ -46,11 +64,11 @@ export class BoxViewer {
         key.shadow.mapSize.width  = 2048;
         key.shadow.mapSize.height = 2048;
         key.shadow.camera.near    = 1;
-        key.shadow.camera.far     = 3000;
-        key.shadow.camera.left    = -800;
-        key.shadow.camera.right   =  800;
-        key.shadow.camera.top     =  800;
-        key.shadow.camera.bottom  = -800;
+        key.shadow.camera.far     = 4000;
+        key.shadow.camera.left    = -1200;
+        key.shadow.camera.right   =  1200;
+        key.shadow.camera.top     =  1200;
+        key.shadow.camera.bottom  = -1200;
         key.shadow.bias           = -0.001;
         this.scene.add(key);
 

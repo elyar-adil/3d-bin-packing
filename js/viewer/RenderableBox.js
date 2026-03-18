@@ -31,16 +31,19 @@ export class RenderableBox extends Box {
         // Group identity is conveyed via a subtle emissive tint + colored edge lines.
         // (Multiplying the group color directly onto the texture would produce near-black.)
         const emissiveColor = new THREE.Color(finalColor).multiplyScalar(0.22);
-        const tex = cloneTex(baseTex,
-            Math.max(1, (width + depth) * 0.5 / TILE),
-            Math.max(1, height / TILE));
+        const texScale = Math.max(1, (width + depth) * 0.5 / TILE);
+        const texScaleH = Math.max(1, height / TILE);
+        const tex       = cloneTex(baseTex, texScale, texScaleH);
+        const normalTex = cloneTex(TextureFactory.getCardboardNormalMap(), texScale, texScaleH);
         const material = new THREE.MeshStandardMaterial({
             map:                 tex,
+            normalMap:           normalTex,
+            normalScale:         new THREE.Vector2(0.6, 0.6),
             color:               0xffffff,      // white → texture shows naturally
             emissive:            emissiveColor, // soft group-color glow
             opacity:             options.fragile ? 0.78 : 1.0,
             metalness:           0.0,
-            roughness:           0.82,
+            roughness:           0.80,
             transparent:         !!options.fragile,
             polygonOffset:       true,
             polygonOffsetFactor: 1,

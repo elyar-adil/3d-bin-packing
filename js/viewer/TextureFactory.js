@@ -7,14 +7,21 @@
 
 /** Singleton factory that generates and caches procedural Three.js textures. */
 export class TextureFactory {
-    static _cardboardTex = null;
-    static _woodTex      = null;
-    static _metalTex     = null;
+    static _cardboardTex    = null;
+    static _cardboardNormal = null;
+    static _woodTex         = null;
+    static _metalTex        = null;
 
     static getCardboardTexture() {
         if (!TextureFactory._cardboardTex)
             TextureFactory._cardboardTex = TextureFactory._makeCardboard();
         return TextureFactory._cardboardTex;
+    }
+
+    static getCardboardNormalMap() {
+        if (!TextureFactory._cardboardNormal)
+            TextureFactory._cardboardNormal = TextureFactory._makeCardboardNormal();
+        return TextureFactory._cardboardNormal;
     }
 
     static getWoodTexture() {
@@ -151,6 +158,39 @@ export class TextureFactory {
             d[i]   = Math.max(0, Math.min(255, d[i]   + n));
             d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
             d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+        }
+        ctx.putImageData(id, 0, 0);
+
+        const tex = new THREE.CanvasTexture(cv);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        return tex;
+    }
+
+    // ── Cardboard normal map — horizontal flute ridges for PBR depth ──────────
+    static _makeCardboardNormal() {
+        const S = 512, cv = document.createElement('canvas');
+        cv.width = cv.height = S;
+        const ctx = cv.getContext('2d');
+
+        // Base normal pointing straight out: RGB(128, 128, 255)
+        ctx.fillStyle = '#8080ff';
+        ctx.fillRect(0, 0, S, S);
+
+        const id = ctx.getImageData(0, 0, S, S), d = id.data;
+        // Corrugated flute period: ~10 pixels → ~50 ridges per tile
+        const period = 10;
+        for (let i = 0; i < d.length; i += 4) {
+            const py = Math.floor(i / 4 / S); // pixel row
+            const t  = (py / period) * Math.PI * 2;
+            // Ny encodes vertical slope of the sine ridge profile
+            const slope = Math.cos(t);  // derivative of sin
+            // Normal: Nx=0 (128), Ny=slope*60, Nz=high (215-255)
+            const ny = Math.max(0, Math.min(255, 128 + slope * 55));
+            const nz = Math.max(180, Math.min(255, 220 - Math.abs(slope) * 30));
+            d[i]     = 128; // R = Nx (neutral)
+            d[i + 1] = ny;  // G = Ny (tilt up/down)
+            d[i + 2] = nz;  // B = Nz
+            d[i + 3] = 255;
         }
         ctx.putImageData(id, 0, 0);
 
