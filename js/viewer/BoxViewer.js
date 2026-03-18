@@ -45,9 +45,12 @@ export class BoxViewer {
     _addGroundPlane() {
         const geo = new THREE.PlaneGeometry(8000, 8000);
         const mat = new THREE.MeshStandardMaterial({
-            color:     0xffffff,
-            roughness: 0.92,
-            metalness: 0.0
+            color:          0xffffff,
+            roughness:      0.92,
+            metalness:      0.0,
+            polygonOffset:      true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits:  1
         });
         const plane = new THREE.Mesh(geo, mat);
         plane.rotation.x    = -Math.PI / 2;

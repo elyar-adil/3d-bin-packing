@@ -31,6 +31,12 @@ let currentContainerType = 'container';
 let selectedAlgo = 'heuristic';
 let panelManager, statsDisplay, boxTable;
 
+// ─── Step playback state ──────────────────────────────────────────────────────
+let _packedBoxes   = [];   // result of last solve
+let _currentStep   = 0;   // how many boxes are currently visible
+let _playTimer     = null; // interval handle when playing
+let _playInterval  = 600; // ms between steps during auto-play
+
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
     _initViewer();
@@ -254,13 +260,13 @@ function _solveInternal() {
     const SolverClass = solverMap[selectedAlgo] || HeuristicSolver;
     const unpacked    = new SolverClass(container, appBoxes).solve();
 
-    // Animate boxes appearing one-by-one
-    const packed = container.boxes;
-    let i = 0;
-    (function step() {
-        if (i < packed.length) { packed[i++].visible = true; setTimeout(step, 80); }
-    })();
+    // Store packed result and reset step state
+    _packedBoxes = container.boxes.slice();
+    _stopPlay();
+    _currentStep = 0;
+    _packedBoxes.forEach(b => { b.visible = false; });
 
+    _updateStepControls();
     statsDisplay.update(container.getStats(), appBoxes.length);
 
     if (unpacked.length > 0) {
@@ -270,3 +276,73 @@ function _solveInternal() {
             `${unpacked.length} 个箱子无法放入容器`;
     }
 }
+
+// ─── Step control helpers ─────────────────────────────────────────────────────
+function _applyStep(n) {
+    const total = _packedBoxes.length;
+    n = Math.max(0, Math.min(total, n));
+    for (let i = 0; i < total; i++) {
+        _packedBoxes[i].visible = i < n;
+    }
+    _currentStep = n;
+    _updateStepControls();
+}
+
+function _updateStepControls() {
+    const total = _packedBoxes.length;
+    const ctrl  = document.getElementById('step-controls');
+    if (!ctrl) return;
+
+    const hasResult = total > 0;
+    ctrl.style.display = hasResult ? 'flex' : 'none';
+
+    document.getElementById('step-slider').max   = total;
+    document.getElementById('step-slider').value = _currentStep;
+    document.getElementById('step-label').textContent = `${_currentStep} / ${total}`;
+
+    document.getElementById('btn-step-first').disabled = _currentStep === 0;
+    document.getElementById('btn-step-prev').disabled  = _currentStep === 0;
+    document.getElementById('btn-step-next').disabled  = _currentStep === total;
+    document.getElementById('btn-step-last').disabled  = _currentStep === total;
+}
+
+function _stopPlay() {
+    if (_playTimer !== null) {
+        clearInterval(_playTimer);
+        _playTimer = null;
+    }
+    const btn = document.getElementById('btn-step-play');
+    if (btn) btn.textContent = '▶';
+}
+
+window.stepFirst = function() { _stopPlay(); _applyStep(0); };
+window.stepPrev  = function() { _stopPlay(); _applyStep(_currentStep - 1); };
+window.stepNext  = function() { _stopPlay(); _applyStep(_currentStep + 1); };
+window.stepLast  = function() { _stopPlay(); _applyStep(_packedBoxes.length); };
+
+window.togglePlay = function() {
+    if (_playTimer !== null) {
+        _stopPlay();
+        return;
+    }
+    // If already at end, restart from beginning
+    if (_currentStep >= _packedBoxes.length) _applyStep(0);
+    document.getElementById('btn-step-play').textContent = '⏸';
+    _playTimer = setInterval(() => {
+        if (_currentStep >= _packedBoxes.length) {
+            _stopPlay();
+        } else {
+            _applyStep(_currentStep + 1);
+        }
+    }, _playInterval);
+};
+
+window.onStepSlider = function(val) {
+    _stopPlay();
+    _applyStep(parseInt(val));
+};
+
+window.onSpeedChange = function(val) {
+    _playInterval = parseInt(val);
+    document.getElementById('speed-label').textContent = val + 'ms';
+};
