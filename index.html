@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>3D 装箱优化</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
-        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/main.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
 
     <!-- Header -->
     <div id="app-header">
-        <span style="font-size:1.4rem;">&#x1F4E6;</span>
+        <div class="header-icon">&#x1F4E6;</div>
         <div>
             <h1>3D 装箱优化</h1>
             <p class="subtitle">3D Bin Packing Solver</p>
@@ -24,10 +25,12 @@
 
         <!-- ─── Sidebar ─────────────────────────────── -->
         <div id="sidebar">
+            <div id="sidebar-resize-handle"></div>
 
             <!-- Panel 1: Container Setup -->
             <div class="panel-card">
                 <div class="panel-header" id="hdr-container">
+                    <span class="panel-drag-grip">&#8942;</span>
                     &#x1F4E6; 容器设置
                     <span class="toggle-icon">&#9660;</span>
                 </div>
@@ -86,13 +89,14 @@
                         <input class="form-control" id="cont-maxweight" type="number" step="10" value="30000" min="0">
                     </div>
 
-                    <button class="btn btn-primary btn-apply btn-block mt-2" onclick="applyContainer()">应用容器</button>
+                    <button class="btn btn-primary btn-block mt-2" onclick="applyContainer()">应用容器</button>
                 </div>
             </div>
 
             <!-- Panel 2: Add Box -->
             <div class="panel-card">
                 <div class="panel-header" id="hdr-addbox">
+                    <span class="panel-drag-grip">&#8942;</span>
                     &#x2795; 添加箱子
                     <span class="toggle-icon">&#9660;</span>
                 </div>
@@ -128,12 +132,12 @@
                         </div>
                     </div>
 
-                    <div class="row mt-2">
-                        <div class="col-6">
+                    <div class="row-2col mt-2">
+                        <div>
                             <label class="form-label">&#x2696;&#xFE0F; 重量 (kg)</label>
                             <input class="form-control" id="box-weight" type="number" step="0.1" value="1" min="0">
                         </div>
-                        <div class="col-6">
+                        <div>
                             <label class="form-label">顶部载重 (kg)</label>
                             <input class="form-control" id="box-maxwtop" type="number" step="1" value="30" min="0">
                         </div>
@@ -152,7 +156,7 @@
                     <div id="constraints-panel" style="display:none;">
                         <div class="form-check mb-1">
                             <input class="form-check-input" type="checkbox" id="box-fragile">
-                            <label class="form-check-label" for="box-fragile" style="font-size:0.8rem;">
+                            <label class="form-check-label" for="box-fragile">
                                 &#x26A0;&#xFE0F; 易碎品 (顶部不可放箱)
                             </label>
                         </div>
@@ -173,7 +177,7 @@
 
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="box-isolated">
-                            <label class="form-check-label" for="box-isolated" style="font-size:0.8rem;">
+                            <label class="form-check-label" for="box-isolated">
                                 隔离放置 (与其他组不相邻)
                             </label>
                         </div>
@@ -184,7 +188,7 @@
                         <input class="form-control" id="box-label" type="text" placeholder="可选">
                     </div>
 
-                    <button class="btn btn-success btn-block mt-2 btn-apply" onclick="addBoxes()">
+                    <button class="btn btn-success btn-block mt-2" onclick="addBoxes()">
                         &#x2795; 添加
                     </button>
                 </div>
@@ -193,6 +197,7 @@
             <!-- Panel 3: Algorithm -->
             <div class="panel-card">
                 <div class="panel-header" id="hdr-algo">
+                    <span class="panel-drag-grip">&#8942;</span>
                     &#x2699;&#xFE0F; 算法选择
                     <span class="toggle-icon">&#9660;</span>
                 </div>
@@ -221,7 +226,7 @@
                     <button class="btn-solve mt-3" id="solve-button" onclick="doSolve()">
                         <span id="solve-icon">&#x25B6;</span>
                         <span id="solve-text">开始求解</span>
-                        <span class="spinner-border spinner-border-sm" id="spinner" style="display:none;" role="status"></span>
+                        <span class="spinner-ring" id="spinner" style="display:none;"></span>
                     </button>
 
                     <div id="unpacked-alert" class="mt-2">
@@ -240,14 +245,14 @@
             <div class="panel-card" id="viewer-card">
                 <div class="panel-header" style="cursor:default; pointer-events:none;">
                     &#x1F5C2;&#xFE0F; 3D 视图 &nbsp;
-                    <small style="font-weight:400; color:#6c757d;">拖动旋转 · 滚轮缩放</small>
+                    <small class="viewer-hint">拖动旋转 · 滚轮缩放</small>
                 </div>
                 <div id="canvas-wrapper">
                     <canvas id="canvas"></canvas>
                     <div class="spinner-overlay" id="spinner-overlay">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <div style="margin-top:8px; font-size:0.85rem; color:#555;">求解中...</div>
+                        <div class="spinner-overlay-inner">
+                            <div class="spinner-ring large"></div>
+                            <div class="spinner-label">求解中...</div>
                         </div>
                     </div>
                 </div>
@@ -255,17 +260,19 @@
                     <div class="stat-item">
                         <span class="stat-label">装箱率</span>
                         <span class="stat-value" id="stat-util">—</span>
-                        <span class="stat-label">%</span>
+                        <span class="stat-unit">%</span>
                     </div>
+                    <div class="stat-divider"></div>
                     <div class="stat-item">
                         <span class="stat-label">箱子数</span>
                         <span class="stat-value" id="stat-boxes">0</span>
-                        <span class="stat-label" id="stat-boxes-total"></span>
+                        <span class="stat-unit" id="stat-boxes-total"></span>
                     </div>
+                    <div class="stat-divider"></div>
                     <div class="stat-item">
                         <span class="stat-label">&#x2696;&#xFE0F; 总重量</span>
                         <span class="stat-value" id="stat-weight">0</span>
-                        <span class="stat-label">kg</span>
+                        <span class="stat-unit">kg</span>
                     </div>
                 </div>
             </div>
@@ -273,13 +280,14 @@
             <!-- Box list -->
             <div class="panel-card" id="box-list-section">
                 <div class="panel-header" id="hdr-boxlist">
+                    <span class="panel-drag-grip">&#8942;</span>
                     &#x1F4CB; 箱子列表
-                    <span id="box-count-badge" style="margin-left:6px; font-size:0.75rem; background:#e9ecef; border-radius:10px; padding:1px 7px;">0</span>
-                    <button class="btn btn-sm btn-outline-danger btn-apply ml-auto drag-ignore" style="font-size:0.7rem; padding:1px 8px;" onclick="clearAllBoxes(event)">清空全部</button>
-                    <span class="toggle-icon" style="margin-left:6px;">&#9660;</span>
+                    <span id="box-count-badge" class="count-badge">0</span>
+                    <button class="btn btn-danger-outline btn-sm drag-ignore" onclick="clearAllBoxes(event)">清空全部</button>
+                    <span class="toggle-icon" style="margin-left:4px;">&#9660;</span>
                 </div>
                 <div class="panel-body panel-body-scroll" id="panel-boxlist" style="padding:0;">
-                    <table class="table table-sm" id="box-table">
+                    <table class="data-table" id="box-table">
                         <thead>
                             <tr>
                                 <th></th>

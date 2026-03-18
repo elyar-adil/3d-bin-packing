@@ -16,6 +16,33 @@ function cloneTex(baseTex, rx, ry) {
     return t;
 }
 
+/**
+ * Build a corrugated PlaneGeometry where vertices are displaced in Z
+ * to form actual sine-wave ridges (not just a texture effect).
+ *
+ * @param {number} width   - total width of the plane
+ * @param {number} height  - total height of the plane
+ * @param {number} ridgeW  - approximate ridge pitch (cm)
+ * @param {number} amp     - ridge amplitude (depth of corrugation)
+ */
+function makeCorrugatedGeo(width, height, ridgeW, amp) {
+    const numRidges  = Math.max(4, Math.round(width / ridgeW));
+    const segsX      = numRidges * 8;   // 8 verts per ridge → smooth sine
+    const segsY      = Math.max(2, Math.round(height / ridgeW));
+    const geo        = new THREE.PlaneGeometry(width, height, segsX, segsY);
+    const pos        = geo.attributes.position;
+
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);           // local plane x ∈ [-w/2, w/2]
+        // Sine wave across width: one full period = ridgeW
+        const t = (x / width + 0.5) * Math.PI * 2 * numRidges;
+        pos.setZ(i, Math.sin(t) * amp);
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    return geo;
+}
+
 /** A Container with Three.js visualization (wireframe + pallet or shipping-container detail). */
 export class RenderableContainer extends Container {
     constructor(viewer, width, height, depth, options = {}) {
@@ -113,44 +140,50 @@ export class RenderableContainer extends Container {
         return group;
     }
 
-    // ── Shipping container: white corrugated steel, ISO structure ─────────────
+    // ── Shipping container: corrugated-steel mesh walls + ISO structure ────────
     _buildContainer() {
         const W = this.size.x, H = this.size.y, D = this.size.z;
         const yOff = this.palletHeight;
         const group = new THREE.Group();
-        const baseTex = TextureFactory.getMetalTexture();
 
-        // TILE controls texture repeat:  W/TILE ≈ 2.7 repeats on a W=300 container
-        // ridgeWidth=60 in the texture → ~8.5 ridges/repeat → ~23 ridges total (realistic)
-        const TILE = 110;
+        // Corrugation geometry parameters
+        // Ridge pitch ≈ 12 cm → realistic shipping-container corrugation
+        const ridgeW = Math.max(8, Math.min(20, W * 0.04));
+        const amp    = ridgeW * 0.18;   // corrugation depth
 
-        // ── Semi-transparent corrugated walls ─────────────────────────────────
-        const mkWallMat = (rx, ry) => new THREE.MeshStandardMaterial({
-            map:         cloneTex(baseTex, rx, ry),
-            color:       0xf8f8fa,
-            roughness:   0.52, metalness: 0.42,
-            transparent: true, opacity: 0.16,
-            side:        THREE.DoubleSide, depthWrite: false
+        // ── Material for corrugated walls (semi-transparent steel) ─────────────
+        const wallMat = new THREE.MeshStandardMaterial({
+            color:       0xf0f2f5,
+            roughness:   0.45,
+            metalness:   0.55,
+            transparent: true,
+            opacity:     0.22,
+            side:        THREE.DoubleSide,
+            depthWrite:  false
         });
 
-        const addWall = (geo, mat, pos, rotY = 0) => {
-            const m = new THREE.Mesh(geo, mat);
+        const addWall = (geo, pos, rotY = 0) => {
+            const m = new THREE.Mesh(geo, wallMat.clone());
             m.rotation.y = rotY;
             m.position.copy(pos);
+            m.castShadow    = true;
+            m.receiveShadow = true;
             group.add(m);
         };
 
-        // Long walls (front z=0 / back z=D)
-        const wGeo = new THREE.PlaneGeometry(W, H);
-        addWall(wGeo,        mkWallMat(W/TILE, H/TILE), new THREE.Vector3(W/2, H/2+yOff, 0));
-        addWall(wGeo.clone(), mkWallMat(W/TILE, H/TILE), new THREE.Vector3(W/2, H/2+yOff, D), Math.PI);
+        // Long walls (front z=0 / back z=D) — corrugations run vertically along width
+        const frontGeo = makeCorrugatedGeo(W, H, ridgeW, amp);
+        addWall(frontGeo,        new THREE.Vector3(W/2, H/2+yOff, 0));
+        addWall(makeCorrugatedGeo(W, H, ridgeW, amp), new THREE.Vector3(W/2, H/2+yOff, D), Math.PI);
 
         // Short side walls (x=0 / x=W)
-        const sGeo = new THREE.PlaneGeometry(D, H);
-        addWall(sGeo,        mkWallMat(D/TILE, H/TILE), new THREE.Vector3(0, H/2+yOff, D/2),  Math.PI/2);
-        addWall(sGeo.clone(), mkWallMat(D/TILE, H/TILE), new THREE.Vector3(W, H/2+yOff, D/2), -Math.PI/2);
+        const sideGeo = makeCorrugatedGeo(D, H, ridgeW, amp);
+        addWall(sideGeo,                             new THREE.Vector3(0, H/2+yOff, D/2),  Math.PI/2);
+        addWall(makeCorrugatedGeo(D, H, ridgeW, amp), new THREE.Vector3(W, H/2+yOff, D/2), -Math.PI/2);
 
         // ── Floor (solid light-gray steel checker-plate) ──────────────────────
+        const baseTex = TextureFactory.getMetalTexture();
+        const TILE = 110;
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(W, D),
             new THREE.MeshStandardMaterial({
@@ -163,14 +196,15 @@ export class RenderableContainer extends Container {
         floor.receiveShadow = true;
         group.add(floor);
 
-        // ── Ceiling (semi-transparent) ────────────────────────────────────────
-        const ceiling = new THREE.Mesh(
-            new THREE.PlaneGeometry(W, D),
-            mkWallMat(W/TILE, D/TILE)
-        );
-        ceiling.rotation.x = Math.PI / 2;
-        ceiling.position.set(W/2, yOff + H, D/2);
-        group.add(ceiling);
+        // ── Ceiling (semi-transparent corrugated) ─────────────────────────────
+        const ceilGeo = makeCorrugatedGeo(W, D, ridgeW, amp);
+        const ceil = new THREE.Mesh(ceilGeo, wallMat.clone());
+        // Ceiling plane is XZ, so rotate around X then reorient corrugations
+        ceil.rotation.x = Math.PI / 2;
+        ceil.position.set(W/2, yOff + H, D/2);
+        ceil.castShadow    = true;
+        ceil.receiveShadow = true;
+        group.add(ceil);
 
         // ── Structural steel: shared materials ────────────────────────────────
         const postMat  = new THREE.MeshStandardMaterial({ color: 0xe8eaec, roughness: 0.48, metalness: 0.52 });
@@ -184,7 +218,8 @@ export class RenderableContainer extends Container {
         for (const [cx, cz] of [[pw/2,pw/2],[W-pw/2,pw/2],[pw/2,D-pw/2],[W-pw/2,D-pw/2]]) {
             const post = new THREE.Mesh(new THREE.BoxGeometry(pw, H, pw), postMat);
             post.position.set(cx, yOff + H/2, cz);
-            post.castShadow = true;
+            post.castShadow    = true;
+            post.receiveShadow = true;
             group.add(post);
         }
 
@@ -195,18 +230,21 @@ export class RenderableContainer extends Container {
             for (const rz of [rw/2, D - rw/2]) {
                 const r = new THREE.Mesh(new THREE.BoxGeometry(W, rw, rw), railMat);
                 r.position.set(W/2, ry, rz);
+                r.castShadow    = true;
+                r.receiveShadow = true;
                 group.add(r);
             }
             // Rails along Z (left + right)
             for (const rx of [rw/2, W - rw/2]) {
                 const r = new THREE.Mesh(new THREE.BoxGeometry(rw, rw, D), railMat);
                 r.position.set(rx, ry, D/2);
+                r.castShadow    = true;
+                r.receiveShadow = true;
                 group.add(r);
             }
         }
 
         // ── ISO corner castings at all 8 corners ──────────────────────────────
-        // Proportionally sized box fittings — slightly larger than post cross-section
         const cfw = pw * 1.90, cfh = pw * 1.30;
         for (const [cx, cy, cz] of [
             [0, yOff,   0], [W, yOff,   0], [0, yOff,   D], [W, yOff,   D],
@@ -214,6 +252,8 @@ export class RenderableContainer extends Container {
         ]) {
             const casting = new THREE.Mesh(new THREE.BoxGeometry(cfw, cfh, cfw), castMat);
             casting.position.set(cx, cy, cz);
+            casting.castShadow    = true;
+            casting.receiveShadow = true;
             group.add(casting);
         }
 
