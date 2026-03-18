@@ -25,7 +25,7 @@ export class BoxViewer {
         // Subtle exponential fog gives depth without obscuring boxes
         this.scene.fog = new THREE.FogExp2(0xdde2e8, 0.0006);
 
-        this.camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight);
+        this.camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.5, 8000);
         this.camera.position.set(200, 200, 300);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
