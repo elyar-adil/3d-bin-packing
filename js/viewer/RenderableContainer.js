@@ -29,7 +29,8 @@ function makeCorrugatedGeo(width, height, ridgeW, amp) {
     const numRidges  = Math.max(4, Math.round(width / ridgeW));
     const segsX      = numRidges * 8;   // 8 verts per ridge → smooth sine
     const segsY      = Math.max(2, Math.round(height / ridgeW));
-    const geo        = new THREE.PlaneGeometry(width, height, segsX, segsY);
+    // Must use PlaneBufferGeometry (not PlaneGeometry) in r81 to get BufferAttribute API
+    const geo        = new THREE.PlaneBufferGeometry(width, height, segsX, segsY);
     const pos        = geo.attributes.position;
 
     for (let i = 0; i < pos.count; i++) {
