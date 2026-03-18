@@ -672,7 +672,7 @@ select.form-control {
 @media (max-width: 768px) {
     #app-body   { flex-direction: column; height: auto; overflow: visible; }
     #sidebar    { width: 100% !important; max-width: 100% !important; border-right: none; border-bottom: 1px solid var(--border); }
-    #main-area  { height: 80vw; min-height: 300px; }
+    #main-area  { height: 60vh; min-height: 400px; }
     #canvas-wrapper { flex: 1; }
     #sidebar-resize-handle { display: none; }
 }

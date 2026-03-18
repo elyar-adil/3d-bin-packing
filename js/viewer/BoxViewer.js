@@ -29,9 +29,10 @@ export class BoxViewer {
         this.camera.position.set(200, 200, 300);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.5;
-        this.controls.enableZoom   = true;
+        this.controls.enableDamping  = true;
+        this.controls.dampingFactor  = 0.5;
+        this.controls.enableZoom     = true;
+        this.controls.maxPolarAngle  = Math.PI / 2; // prevent camera going below ground
 
         this._setupLights();
         this._addGroundPlane();
