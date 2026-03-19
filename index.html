@@ -221,8 +221,10 @@
                     <div class="algo-option" onclick="selectAlgo('annealing', this)">
                         <input type="radio" name="algo" value="annealing">
                         <span class="algo-name">模拟退火</span>
-                        <div class="algo-desc">全局优化算法，装箱率最高但速度较慢</div>
+                        <div class="algo-desc">全局优化算法，装箱率最高；多核并行加速</div>
                     </div>
+
+                    <div id="gpu-badge" class="gpu-badge gpu-off" title="检测 WebGPU 中…">GPU: 检测中</div>
 
                     <button class="btn-solve mt-3" id="solve-button" onclick="doSolve()">
                         <span id="solve-icon">&#x25B6;</span>

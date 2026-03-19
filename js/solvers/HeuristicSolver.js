@@ -3,10 +3,10 @@
     License: GPL-3.0 | Licensor: Elyar Adil
 */
 
-import { BaseSolver } from './BaseSolver.js';
-import { Vector3D } from '../models/Vector3D.js';
-import { sortBoxesForPacking } from '../utils/sorting.js';
-import { gravityDrop } from '../utils/physics.js';
+import { BaseSolver }           from './BaseSolver.js';
+import { Vector3D }             from '../models/Vector3D.js';
+import { sortBoxesForPacking }  from '../utils/sorting.js';
+import { gravityDrop }          from '../utils/physics.js';
 
 export class HeuristicSolver extends BaseSolver {
     static getName()        { return '启发式贪心'; }
@@ -31,26 +31,71 @@ export class HeuristicSolver extends BaseSolver {
         positions.push(new Vector3D(box.position.x, box.position.y, box.position.z + box.size.z));
     }
 
+    /**
+     * Compact the newly placed box toward the origin (−X then −Z).
+     *
+     * Previous implementation stepped by 0.01 cm at a time, calling canHold()
+     * on each micro-step — O(n × distance / 0.01) = potentially tens of thousands
+     * of calls per box.
+     *
+     * New implementation:  O(n) — one pass over placed boxes per axis.
+     * For each axis we compute the maximum "blocker edge" among all placed
+     * boxes that overlap in the other two dimensions (including the fragile-
+     * adjacency constraint). That edge is exactly the leftmost valid position;
+     * no iteration required.
+     */
     _moveBoxToShrink(box) {
         gravityDrop(box, this.container);
-        let anyMovement = false;
-        let boxMoved;
-        do {
-            let moveCount = 0;
-            while (this.container.canHold(box)) { box.position.x -= 0.01; moveCount++; }
-            box.position.x += 0.01; moveCount--;
-            while (this.container.canHold(box)) { box.position.z -= 0.01; moveCount++; }
-            box.position.z += 0.01; moveCount--;
-            boxMoved = moveCount !== 0;
-            if (boxMoved) anyMovement = true;
-        } while (boxMoved);
-        return anyMovement;
+
+        const TOL    = 0.001;
+        const origX  = box.position.x;
+        const origZ  = box.position.z;
+        const placed = this.container.boxes;
+
+        // ── Compact in X ──────────────────────────────────────────────────────
+        // A placed box b blocks us from moving left if it overlaps in Y-Z AND
+        // its right edge is between 0 and our current position.
+        // Also: a fragile box directly below (adjacent Y) with Z overlap blocks us.
+        let minX = 0;
+        for (const b of placed) {
+            const yOvlp = box.position.y + box.size.y > b.position.y + TOL
+                       && box.position.y              < b.position.y + b.size.y - TOL;
+            const yAdj  = b.fragile
+                       && Math.abs(box.position.y - (b.position.y + b.size.y)) < TOL;
+            const zOvlp = box.position.z + box.size.z > b.position.z + TOL
+                       && box.position.z              < b.position.z + b.size.z - TOL;
+
+            if ((yOvlp || yAdj) && zOvlp) {
+                const re = b.position.x + b.size.x;
+                if (re > minX && re <= box.position.x + TOL) minX = re;
+            }
+        }
+        box.position.x = minX;
+
+        // ── Compact in Z (using updated X position) ───────────────────────────
+        let minZ = 0;
+        for (const b of placed) {
+            const yOvlp = box.position.y + box.size.y > b.position.y + TOL
+                       && box.position.y              < b.position.y + b.size.y - TOL;
+            const yAdj  = b.fragile
+                       && Math.abs(box.position.y - (b.position.y + b.size.y)) < TOL;
+            const xOvlp = box.position.x + box.size.x > b.position.x + TOL
+                       && box.position.x              < b.position.x + b.size.x - TOL;
+
+            if ((yOvlp || yAdj) && xOvlp) {
+                const fe = b.position.z + b.size.z;
+                if (fe > minZ && fe <= box.position.z + TOL) minZ = fe;
+            }
+        }
+        box.position.z = minZ;
+
+        return origX - box.position.x > TOL || origZ - box.position.z > TOL;
     }
 
     solve() {
         let unPacked = sortBoxesForPacking(this.boxes.slice()).reverse();
-        const candidates = [new Vector3D(0, 0, 0)];
-        const unPackable = [];
+        const candidates  = [new Vector3D(0, 0, 0)];
+        const unPackable  = [];
         let xLimit = 0, yLimit = 0;
 
         while (unPacked.length > 0) {
@@ -78,7 +123,7 @@ export class HeuristicSolver extends BaseSolver {
                     placed = this._orientBoxToFit(box);
                     if (placed) {
                         yLimit += box.size.y;
-                        xLimit = box.size.x;
+                        xLimit  = box.size.x;
                     } else if (yLimit < this.container.size.y) {
                         xLimit = this.container.size.x;
                         yLimit = this.container.size.y;

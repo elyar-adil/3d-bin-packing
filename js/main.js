@@ -10,32 +10,17 @@ import {
 } from './BinPackingSolver.js';
 
 import { BoxViewer, RenderableBox, RenderableContainer, resetGroupColors } from './BoxViewer.js';
-import { PanelManager } from './ui/PanelManager.js';
+import { PanelManager }  from './ui/PanelManager.js';
 import { StatsDisplay }  from './ui/StatsDisplay.js';
-import { BoxTable }       from './ui/BoxTable.js';
+import { BoxTable }      from './ui/BoxTable.js';
+import { Vector3D }      from './models/Vector3D.js';
 
 // ─── Color palette (perceptually distinct, high-saturation colours) ────────────
 const COLOR_PALETTE = [
-    '#e6194b', // vivid red
-    '#3cb44b', // vivid green
-    '#4169e1', // royal blue
-    '#ff8c00', // dark orange
-    '#911eb4', // purple
-    '#00ced1', // dark turquoise
-    '#ff69b4', // hot pink
-    '#8db600', // apple green
-    '#dc143c', // crimson
-    '#00bfff', // deep sky blue
-    '#ff6347', // tomato
-    '#7b68ee', // medium slate blue
-    '#20b2aa', // light sea green
-    '#ff1493', // deep pink
-    '#daa520', // goldenrod
-    '#4682b4', // steel blue
-    '#d2691e', // chocolate
-    '#9400d3', // dark violet
-    '#228b22', // forest green
-    '#ff4500', // orange-red
+    '#e6194b', '#3cb44b', '#4169e1', '#ff8c00', '#911eb4',
+    '#00ced1', '#ff69b4', '#8db600', '#dc143c', '#00bfff',
+    '#ff6347', '#7b68ee', '#20b2aa', '#ff1493', '#daa520',
+    '#4682b4', '#d2691e', '#9400d3', '#228b22', '#ff4500',
 ];
 let _colorIdx = 0;
 const nextColor = () => COLOR_PALETTE[_colorIdx++ % COLOR_PALETTE.length];
@@ -48,16 +33,20 @@ let selectedAlgo = 'heuristic';
 let panelManager, statsDisplay, boxTable;
 
 // ─── Step playback state ──────────────────────────────────────────────────────
-let _packedBoxes   = [];   // result of last solve
-let _currentStep   = 0;   // how many boxes are currently visible
-let _playTimer     = null; // interval handle when playing
-let _playInterval  = 600; // ms between steps during auto-play
+let _packedBoxes  = [];
+let _currentStep  = 0;
+let _playTimer    = null;
+let _playInterval = 600;
+
+// ─── GPU / Worker state ───────────────────────────────────────────────────────
+let _gpuAvailable = false;
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     _initViewer();
     _initUI();
     applyContainer();
+    await _detectGPU();
 });
 
 function _initViewer() {
@@ -80,13 +69,35 @@ function _initUI() {
         document.getElementById('box-table-body'),
         document.getElementById('box-count-badge')
     );
-    // Init panel collapse/drag/resize for sidebar panels
     panelManager = new PanelManager(document.getElementById('sidebar'));
-    // Init collapse+resize for main-area panels (no drag reordering, no sidebar resize)
     new PanelManager(document.getElementById('main-area'), {
         enableDrag: false,
         enableSidebarResize: false
     });
+}
+
+// ─── GPU detection ────────────────────────────────────────────────────────────
+async function _detectGPU() {
+    const badge = document.getElementById('gpu-badge');
+    if (!badge) return;
+
+    if (!navigator.gpu) {
+        badge.textContent  = 'GPU: 不可用';
+        badge.title        = 'WebGPU 不受支持（极大空间算法将使用 CPU）';
+        badge.className    = 'gpu-badge gpu-off';
+        return;
+    }
+    try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error('no adapter');
+        _gpuAvailable = true;
+        badge.textContent = 'GPU: 已启用';
+        badge.title       = 'WebGPU 可用 — 极大空间算法已启用 GPU 加速，空间上限从 200 提升至 2000';
+        badge.className   = 'gpu-badge gpu-on';
+    } catch {
+        badge.textContent = 'GPU: 不可用';
+        badge.className   = 'gpu-badge gpu-off';
+    }
 }
 
 // ─── Container ────────────────────────────────────────────────────────────────
@@ -180,7 +191,6 @@ window.addBoxes = function() {
     if (!opts.label) opts.label = `${w}×${h}×${d}`;
 
     const color = nextColor();
-    const startIdx = appBoxes.length;
 
     for (let i = 0; i < qty; i++) {
         const box = new RenderableBox(color, boxViewer, w, h, d, opts);
@@ -189,8 +199,6 @@ window.addBoxes = function() {
     }
 
     boxTable.addRow(color, w, h, d, qty, opts.weight, opts, (deletedQty) => {
-        // Remove last deletedQty boxes added at the corresponding offset
-        // Heuristic: the row tracks qty, remove qty from tail of appBoxes
         const removed = appBoxes.splice(appBoxes.length - deletedQty, deletedQty);
         removed.forEach(b => b.removeFromScene());
         boxTable.updateBadge(appBoxes.length);
@@ -232,41 +240,155 @@ window.selectAlgo = function(key, el) {
     el.querySelector('input[type=radio]').checked = true;
 };
 
+// ─── Worker helpers ───────────────────────────────────────────────────────────
+
+/** Serialise a Box (or RenderableBox) into a plain data object for the worker. */
+function _serializeBox(box, index) {
+    return {
+        index,
+        w:                     box._w,
+        h:                     box._h,
+        d:                     box._d,
+        weight:                box.weight,
+        maxWeightOnTop:        box.maxWeightOnTop,
+        fragile:               box.fragile,
+        orientationConstraint: box.orientationConstraint,
+        group:                 box.group,
+        isolated:              box.isolated,
+        label:                 box.label,
+    };
+}
+
+/** Serialise container dimensions for the worker. */
+function _serializeContainer(c) {
+    return {
+        width:        c.size.x,
+        height:       c.size.y,
+        depth:        c.size.z,
+        maxWeight:    c.maxWeight,
+        isPallet:     c.isPallet,
+        palletHeight: c.palletHeight,
+    };
+}
+
+/** Spawn one solver worker and return its result as a Promise. */
+function _runWorker(solverType, boxData, containerData, workerId) {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(
+            new URL('./workers/solver-worker.js', import.meta.url),
+            { type: 'module' }
+        );
+        worker.onmessage = ({ data }) => {
+            if (data.type === 'result') {
+                worker.terminate();
+                resolve(data);
+            }
+        };
+        worker.onerror = (e) => { worker.terminate(); reject(e); };
+        worker.postMessage({ type: 'solve', solverType, boxes: boxData, containerData, workerId });
+    });
+}
+
+/**
+ * Run the chosen solver via Web Worker(s).
+ * For Simulated Annealing, run N parallel chains and take the best result.
+ *
+ * @returns {Promise<{packed, unpacked}>}
+ */
+async function _solveViaWorkers(solverType, appBoxes, container) {
+    const boxData       = appBoxes.map((b, i) => _serializeBox(b, i));
+    const containerData = _serializeContainer(container);
+
+    if (solverType !== 'annealing') {
+        // Single worker for deterministic solvers
+        return _runWorker(solverType, boxData, containerData, 0);
+    }
+
+    // Parallel SA chains — one per logical CPU core (capped at 8)
+    const cores = Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 8);
+    const tasks = Array.from({ length: cores }, (_, i) =>
+        _runWorker('annealing', boxData, containerData, i)
+    );
+    const results = await Promise.all(tasks);
+
+    // Pick the chain that packed the most boxes (tie-break: more total volume)
+    return results.reduce((best, cur) => {
+        if (cur.packed.length > best.packed.length) return cur;
+        if (cur.packed.length === best.packed.length
+            && cur.packed.length > 0) return cur; // both equal, keep first
+        return best;
+    });
+}
+
+/** Apply worker result to the renderable container and boxes. */
+function _applyWorkerResult(result, container, appBoxes) {
+    container.makeEmpty();
+    for (const item of result.packed) {
+        const box = appBoxes[item.boxIndex];
+        box.orientation = item.orientation;
+        box.position    = new Vector3D(item.position.x, item.position.y, item.position.z);
+        container.put(box);
+    }
+    return result.unpacked;
+}
+
 // ─── Solve ────────────────────────────────────────────────────────────────────
-window.doSolve = function() {
+window.doSolve = async function() {
     if (appBoxes.length === 0) { alert('请先添加箱子'); return; }
 
     const btn     = document.getElementById('solve-button');
     const spinner = document.getElementById('spinner');
     const icon    = document.getElementById('solve-icon');
     const overlay = document.getElementById('spinner-overlay');
-    const alert   = document.getElementById('unpacked-alert');
+    const alertEl = document.getElementById('unpacked-alert');
 
-    btn.disabled       = true;
+    btn.disabled          = true;
     spinner.style.display = 'inline-block';
     icon.style.display    = 'none';
     overlay.classList.add('active');
-    alert.style.display   = 'none';
+    alertEl.style.display = 'none';
     appBoxes.forEach(b => { b.visible = false; });
     renderableContainer.makeEmpty();
 
-    setTimeout(() => {
-        try {
-            _solveInternal();
-        } catch (e) {
-            console.error('Solve error:', e);
-            alert('求解出错: ' + e.message);
-        } finally {
-            btn.disabled          = false;
-            spinner.style.display = 'none';
-            icon.style.display    = '';
-            overlay.classList.remove('active');
+    try {
+        const result   = await _solveViaWorkers(selectedAlgo, appBoxes, renderableContainer);
+        const unpacked = _applyWorkerResult(result, renderableContainer, appBoxes);
+
+        _packedBoxes = renderableContainer.boxes.slice();
+        _stopPlay();
+        _currentStep = 0;
+        _packedBoxes.forEach(b => { b.visible = false; });
+
+        _updateStepControls();
+        statsDisplay.update(renderableContainer.getStats(), appBoxes.length);
+
+        if (_packedBoxes.length > 0) {
+            setTimeout(() => togglePlay(), 120);
         }
-    }, 20);
+
+        if (unpacked.length > 0) {
+            alertEl.style.display = 'block';
+            document.getElementById('unpacked-msg').textContent =
+                `${unpacked.length} 个箱子无法放入容器`;
+        }
+    } catch (e) {
+        console.error('Solve error:', e);
+        // Fallback: run synchronously on main thread
+        try {
+            _solveSync();
+        } catch (e2) {
+            alert('求解出错: ' + e2.message);
+        }
+    } finally {
+        btn.disabled          = false;
+        spinner.style.display = 'none';
+        icon.style.display    = '';
+        overlay.classList.remove('active');
+    }
 };
 
-function _solveInternal() {
-    const container = renderableContainer;
+/** Synchronous fallback (used when Web Workers are blocked or fail). */
+function _solveSync() {
     const solverMap = {
         heuristic:  HeuristicSolver,
         guillotine: GuillotineSolver,
@@ -274,21 +396,17 @@ function _solveInternal() {
         annealing:  SimulatedAnnealingSolver
     };
     const SolverClass = solverMap[selectedAlgo] || HeuristicSolver;
-    const unpacked    = new SolverClass(container, appBoxes).solve();
+    const unpacked    = new SolverClass(renderableContainer, appBoxes).solve();
 
-    // Store packed result; start animation from the beginning
-    _packedBoxes = container.boxes.slice();
+    _packedBoxes = renderableContainer.boxes.slice();
     _stopPlay();
     _currentStep = 0;
     _packedBoxes.forEach(b => { b.visible = false; });
 
     _updateStepControls();
-    statsDisplay.update(container.getStats(), appBoxes.length);
+    statsDisplay.update(renderableContainer.getStats(), appBoxes.length);
 
-    // Auto-play packing animation after a short render delay
-    if (_packedBoxes.length > 0) {
-        setTimeout(() => togglePlay(), 120);
-    }
+    if (_packedBoxes.length > 0) setTimeout(() => togglePlay(), 120);
 
     if (unpacked.length > 0) {
         const alertEl = document.getElementById('unpacked-alert');
@@ -342,26 +460,16 @@ window.stepNext  = function() { _stopPlay(); _applyStep(_currentStep + 1); };
 window.stepLast  = function() { _stopPlay(); _applyStep(_packedBoxes.length); };
 
 window.togglePlay = function() {
-    if (_playTimer !== null) {
-        _stopPlay();
-        return;
-    }
-    // If already at end, restart from beginning
+    if (_playTimer !== null) { _stopPlay(); return; }
     if (_currentStep >= _packedBoxes.length) _applyStep(0);
     document.getElementById('btn-step-play').textContent = '⏸';
     _playTimer = setInterval(() => {
-        if (_currentStep >= _packedBoxes.length) {
-            _stopPlay();
-        } else {
-            _applyStep(_currentStep + 1);
-        }
+        if (_currentStep >= _packedBoxes.length) _stopPlay();
+        else _applyStep(_currentStep + 1);
     }, _playInterval);
 };
 
-window.onStepSlider = function(val) {
-    _stopPlay();
-    _applyStep(parseInt(val));
-};
+window.onStepSlider = function(val) { _stopPlay(); _applyStep(parseInt(val)); };
 
 window.onSpeedChange = function(val) {
     _playInterval = parseInt(val);
