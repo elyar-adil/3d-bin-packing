@@ -44,9 +44,10 @@
                         <label class="form-label">预设</label>
                         <select class="form-control" id="container-preset" onchange="applyContainerPreset()">
                             <option value="">-- 自定义 --</option>
-                            <option value="0">小型集装箱 (200×220×200)</option>
-                            <option value="1">标准容器 (300×250×250)</option>
-                            <option value="2">货架格位 (120×100×80)</option>
+                            <option value="0">20尺集装箱 (589×239×235cm)</option>
+                            <option value="1">40尺集装箱 (1202×239×235cm)</option>
+                            <option value="2">40尺高柜 (1202×269×235cm)</option>
+                            <option value="3">货架格位 (120×100×80cm)</option>
                         </select>
                     </div>
 
@@ -66,15 +67,15 @@
                         <div class="dim-group">
                             <div>
                                 <div class="dim-label">宽 W</div>
-                                <input class="form-control" id="cont-w" type="number" step="1" value="300" min="1">
+                                <input class="form-control" id="cont-w" type="number" step="1" value="589" min="1">
                             </div>
                             <div>
                                 <div class="dim-label">高 H</div>
-                                <input class="form-control" id="cont-h" type="number" step="1" value="250" min="1">
+                                <input class="form-control" id="cont-h" type="number" step="1" value="239" min="1">
                             </div>
                             <div>
                                 <div class="dim-label">深 D</div>
-                                <input class="form-control" id="cont-d" type="number" step="1" value="250" min="1">
+                                <input class="form-control" id="cont-d" type="number" step="1" value="235" min="1">
                             </div>
                         </div>
                     </div>
@@ -86,7 +87,7 @@
 
                     <div style="margin-top:6px;">
                         <label class="form-label">&#x2696;&#xFE0F; 最大载重 (kg)</label>
-                        <input class="form-control" id="cont-maxweight" type="number" step="10" value="30000" min="0">
+                        <input class="form-control" id="cont-maxweight" type="number" step="10" value="28200" min="0">
                     </div>
 
                     <button class="btn btn-primary btn-block mt-2" onclick="applyContainer()">应用容器</button>
