@@ -14,12 +14,28 @@ import { PanelManager } from './ui/PanelManager.js';
 import { StatsDisplay }  from './ui/StatsDisplay.js';
 import { BoxTable }       from './ui/BoxTable.js';
 
-// ─── Color palette ────────────────────────────────────────────────────────────
+// ─── Color palette (perceptually distinct, high-saturation colours) ────────────
 const COLOR_PALETTE = [
-    '#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f',
-    '#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac',
-    '#2ecc71','#e74c3c','#3498db','#9b59b6','#f39c12',
-    '#1abc9c','#e67e22','#d35400','#27ae60','#8e44ad'
+    '#e6194b', // vivid red
+    '#3cb44b', // vivid green
+    '#4169e1', // royal blue
+    '#ff8c00', // dark orange
+    '#911eb4', // purple
+    '#00ced1', // dark turquoise
+    '#ff69b4', // hot pink
+    '#8db600', // apple green
+    '#dc143c', // crimson
+    '#00bfff', // deep sky blue
+    '#ff6347', // tomato
+    '#7b68ee', // medium slate blue
+    '#20b2aa', // light sea green
+    '#ff1493', // deep pink
+    '#daa520', // goldenrod
+    '#4682b4', // steel blue
+    '#d2691e', // chocolate
+    '#9400d3', // dark violet
+    '#228b22', // forest green
+    '#ff4500', // orange-red
 ];
 let _colorIdx = 0;
 const nextColor = () => COLOR_PALETTE[_colorIdx++ % COLOR_PALETTE.length];
@@ -260,7 +276,7 @@ function _solveInternal() {
     const SolverClass = solverMap[selectedAlgo] || HeuristicSolver;
     const unpacked    = new SolverClass(container, appBoxes).solve();
 
-    // Store packed result and reset step state
+    // Store packed result; start animation from the beginning
     _packedBoxes = container.boxes.slice();
     _stopPlay();
     _currentStep = 0;
@@ -268,6 +284,11 @@ function _solveInternal() {
 
     _updateStepControls();
     statsDisplay.update(container.getStats(), appBoxes.length);
+
+    // Auto-play packing animation after a short render delay
+    if (_packedBoxes.length > 0) {
+        setTimeout(() => togglePlay(), 120);
+    }
 
     if (unpacked.length > 0) {
         const alertEl = document.getElementById('unpacked-alert');
