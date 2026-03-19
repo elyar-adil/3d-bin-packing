@@ -419,6 +419,20 @@ select.form-control {
 .btn-solve:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(79,126,248,0.28); }
 .btn-solve:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
+/* ── GPU status badge ─────────────────────── */
+.gpu-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin: 4px 0 2px;
+    border: 1.5px solid;
+}
+.gpu-on  { color: #15803d; background: #f0fdf4; border-color: #86efac; }
+.gpu-off { color: #6b7280; background: #f3f4f6; border-color: #d1d5db; }
+
 /* ── Algorithm selection ──────────────────── */
 .algo-option {
     border: 1.5px solid var(--border);

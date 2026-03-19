@@ -9,6 +9,9 @@ export class Box {
     static ORIENTATION_COUNT = 6;
 
     constructor(width, height, depth, options = {}) {
+        // Original dimensions — preserved for worker serialisation
+        this._w = width; this._h = height; this._d = depth;
+
         this.position = new Vector3D(0, 0, 0);
         this.sizeInAllOrientation = [
             new Vector3D(width, height, depth),
