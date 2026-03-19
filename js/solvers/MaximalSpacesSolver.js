@@ -119,6 +119,10 @@ export class MaximalSpacesSolver extends BaseSolver {
             box.orientation = bestOrientation;
             box.position    = new Vector3D(sp.x, sp.y, sp.z);
             gravityDrop(box, container);
+            // Gravity drop must not lift the box above the selected space's floor.
+            // A box sitting on top of sp (y ≥ sp.y) would otherwise push the new box
+            // above the container ceiling, causing canHold to fail spuriously.
+            if (box.position.y > sp.y) box.position.y = sp.y;
 
             if (!container.canHold(box)) { unPackable.push(box); continue; }
             container.put(box);
@@ -191,6 +195,7 @@ export class MaximalSpacesSolver extends BaseSolver {
             box.orientation = bestOrientation;
             box.position    = new Vector3D(sp.x, sp.y, sp.z);
             gravityDrop(box, container);
+            if (box.position.y > sp.y) box.position.y = sp.y;
 
             if (!container.canHold(box)) { unPackable.push(box); continue; }
             container.put(box);
