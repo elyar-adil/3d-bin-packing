@@ -96,9 +96,13 @@ export class MaximalSpacesSolver extends BaseSolver {
         const unPackable = [];
 
         for (const box of sortedBoxes) {
-            let bestVol = Infinity, bestSpaceIdx = -1, bestOrientation = -1;
             const validOrientations = box.getValidOrientations();
 
+            // Collect all (space, orientation) pairs that geometrically fit,
+            // sorted by space volume ascending (smallest-fit-first heuristic).
+            // If the top candidate fails physical checks (gravity + support +
+            // collision) we try the next one rather than immediately giving up.
+            const fitCandidates = [];
             for (let si = 0; si < freeSpaces.length; si++) {
                 const sp = freeSpaces[si];
                 for (const ori of validOrientations) {
@@ -106,26 +110,30 @@ export class MaximalSpacesSolver extends BaseSolver {
                     const { x: bw, y: bh, z: bd } = box.size;
                     if (bw <= sp.w + TOL && bh <= sp.h + TOL && bd <= sp.d + TOL) {
                         const spVol = sp.w * sp.h * sp.d;
-                        if (spVol < bestVol) {
-                            bestVol = spVol; bestSpaceIdx = si; bestOrientation = ori;
-                        }
+                        fitCandidates.push({ si, ori, spVol });
                     }
                 }
             }
+            fitCandidates.sort((a, b) => a.spVol - b.spVol);
 
-            if (bestSpaceIdx === -1) { unPackable.push(box); continue; }
+            if (fitCandidates.length === 0) { unPackable.push(box); continue; }
 
-            const sp = freeSpaces[bestSpaceIdx];
-            box.orientation = bestOrientation;
-            box.position    = new Vector3D(sp.x, sp.y, sp.z);
-            gravityDrop(box, container);
-            // Gravity drop must not lift the box above the selected space's floor.
-            // A box sitting on top of sp (y ≥ sp.y) would otherwise push the new box
-            // above the container ceiling, causing canHold to fail spuriously.
-            if (box.position.y > sp.y) box.position.y = sp.y;
+            let placedSi = -1;
+            for (const { si, ori } of fitCandidates) {
+                const sp = freeSpaces[si];
+                box.orientation = ori;
+                box.position    = new Vector3D(sp.x, sp.y, sp.z);
+                gravityDrop(box, container);
+                // Gravity drop must not lift the box above the selected space's floor.
+                if (box.position.y > sp.y) box.position.y = sp.y;
+                if (!isSufficientlySupported(box, container)) continue;
+                if (!container.canHold(box)) continue;
+                placedSi = si;
+                break;
+            }
 
-            if (!isSufficientlySupported(box, container)) { unPackable.push(box); continue; }
-            if (!container.canHold(box)) { unPackable.push(box); continue; }
+            if (placedSi === -1) { unPackable.push(box); continue; }
+
             container.put(box);
 
             const newSpaces = [];
@@ -173,9 +181,9 @@ export class MaximalSpacesSolver extends BaseSolver {
         const unPackable = [];
 
         for (const box of sortedBoxes) {
-            let bestVol = Infinity, bestSpaceIdx = -1, bestOrientation = -1;
             const validOrientations = box.getValidOrientations();
 
+            const fitCandidates = [];
             for (let si = 0; si < freeSpaces.length; si++) {
                 const sp = freeSpaces[si];
                 for (const ori of validOrientations) {
@@ -183,23 +191,29 @@ export class MaximalSpacesSolver extends BaseSolver {
                     const { x: bw, y: bh, z: bd } = box.size;
                     if (bw <= sp.w + TOL && bh <= sp.h + TOL && bd <= sp.d + TOL) {
                         const spVol = sp.w * sp.h * sp.d;
-                        if (spVol < bestVol) {
-                            bestVol = spVol; bestSpaceIdx = si; bestOrientation = ori;
-                        }
+                        fitCandidates.push({ si, ori, spVol });
                     }
                 }
             }
+            fitCandidates.sort((a, b) => a.spVol - b.spVol);
 
-            if (bestSpaceIdx === -1) { unPackable.push(box); continue; }
+            if (fitCandidates.length === 0) { unPackable.push(box); continue; }
 
-            const sp = freeSpaces[bestSpaceIdx];
-            box.orientation = bestOrientation;
-            box.position    = new Vector3D(sp.x, sp.y, sp.z);
-            gravityDrop(box, container);
-            if (box.position.y > sp.y) box.position.y = sp.y;
+            let placedSi = -1;
+            for (const { si, ori } of fitCandidates) {
+                const sp = freeSpaces[si];
+                box.orientation = ori;
+                box.position    = new Vector3D(sp.x, sp.y, sp.z);
+                gravityDrop(box, container);
+                if (box.position.y > sp.y) box.position.y = sp.y;
+                if (!isSufficientlySupported(box, container)) continue;
+                if (!container.canHold(box)) continue;
+                placedSi = si;
+                break;
+            }
 
-            if (!isSufficientlySupported(box, container)) { unPackable.push(box); continue; }
-            if (!container.canHold(box)) { unPackable.push(box); continue; }
+            if (placedSi === -1) { unPackable.push(box); continue; }
+
             container.put(box);
 
             const newSpaces = [];
