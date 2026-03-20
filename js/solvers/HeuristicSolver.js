@@ -125,9 +125,22 @@ export class HeuristicSolver extends BaseSolver {
                         yLimit += box.size.y;
                         xLimit  = box.size.x;
                     } else if (yLimit < this.container.size.y) {
-                        xLimit = this.container.size.x;
-                        yLimit = this.container.size.y;
-                        unPacked.push(box);
+                        // The preferred new-layer origin is blocked (e.g. another
+                        // box sits at (0, yLimit, 0)).  Before abandoning the box,
+                        // scan all existing candidate positions without the yLimit
+                        // constraint — this catches spaces on top of already-placed
+                        // boxes that the constrained loop above could not see.
+                        for (let i = 0; i < candidates.length; i++) {
+                            const c = candidates[i];
+                            box.position = new Vector3D(c.x, c.y, c.z);
+                            placed = this._orientBoxToFit(box);
+                            if (placed) break;
+                        }
+                        if (!placed) {
+                            xLimit = this.container.size.x;
+                            yLimit = this.container.size.y;
+                            unPacked.push(box);
+                        }
                     }
                 } else {
                     for (posIdx = 0; posIdx < candidates.length; posIdx++) {

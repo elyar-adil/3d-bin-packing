@@ -33,39 +33,48 @@ export class GuillotineSolver extends BaseSolver {
         const unPackable = [];
 
         for (const box of sortedBoxes) {
-            let bestScore = Infinity, bestSpaceIdx = -1, bestOrientation = -1;
             const validOrientations = box.getValidOrientations();
 
+            // Collect all (space, orientation) pairs that geometrically fit,
+            // sorted by Best Short Side Fit score so the preferred space is tried
+            // first.  If that space fails physical checks (gravity + support +
+            // collision), we fall through to the next candidate instead of
+            // immediately marking the box as unpackable.
+            const fitCandidates = [];
             for (let si = 0; si < freeSpaces.length; si++) {
                 const sp = freeSpaces[si];
                 for (const ori of validOrientations) {
                     box.orientation = ori;
                     const { x: bw, y: bh, z: bd } = box.size;
                     if (bw <= sp.w + TOL && bh <= sp.h + TOL && bd <= sp.d + TOL) {
-                        // Best Short Side Fit
                         const score = Math.min(sp.w - bw, sp.d - bd);
-                        if (score < bestScore) {
-                            bestScore = score;
-                            bestSpaceIdx = si;
-                            bestOrientation = ori;
-                        }
+                        fitCandidates.push({ si, ori, score });
                     }
                 }
             }
+            fitCandidates.sort((a, b) => a.score - b.score);
 
-            if (bestSpaceIdx === -1) { unPackable.push(box); continue; }
+            if (fitCandidates.length === 0) { unPackable.push(box); continue; }
 
-            const sp = freeSpaces[bestSpaceIdx];
-            box.orientation = bestOrientation;
-            box.position = new Vector3D(sp.x, sp.y, sp.z);
-            gravityDrop(box, container);
+            let placedSi = -1;
+            for (const { si, ori } of fitCandidates) {
+                const sp = freeSpaces[si];
+                box.orientation = ori;
+                box.position = new Vector3D(sp.x, sp.y, sp.z);
+                gravityDrop(box, container);
+                if (!isSufficientlySupported(box, container)) continue;
+                if (!container.canHold(box)) continue;
+                placedSi = si;
+                break;
+            }
 
-            if (!isSufficientlySupported(box, container)) { unPackable.push(box); continue; }
-            if (!container.canHold(box)) { unPackable.push(box); continue; }
+            if (placedSi === -1) { unPackable.push(box); continue; }
+
             container.put(box);
 
+            const sp = freeSpaces[placedSi];
             const { x: bw, y: bh, z: bd } = box.size;
-            freeSpaces.splice(bestSpaceIdx, 1);
+            freeSpaces.splice(placedSi, 1);
 
             // Generate 3 new sub-spaces
             if (sp.w - bw > TOL) freeSpaces.push({ x: sp.x + bw, y: sp.y, z: sp.z, w: sp.w - bw, h: sp.h, d: sp.d });
