@@ -6,7 +6,7 @@
 import { BaseSolver }           from './BaseSolver.js';
 import { Vector3D }             from '../models/Vector3D.js';
 import { sortBoxesForPacking }  from '../utils/sorting.js';
-import { gravityDrop }          from '../utils/physics.js';
+import { gravityDrop, isSufficientlySupported } from '../utils/physics.js';
 
 export class MaximalSpacesSolver extends BaseSolver {
     static getName()        { return '极大空间算法'; }
@@ -124,6 +124,7 @@ export class MaximalSpacesSolver extends BaseSolver {
             // above the container ceiling, causing canHold to fail spuriously.
             if (box.position.y > sp.y) box.position.y = sp.y;
 
+            if (!isSufficientlySupported(box, container)) { unPackable.push(box); continue; }
             if (!container.canHold(box)) { unPackable.push(box); continue; }
             container.put(box);
 
@@ -197,6 +198,7 @@ export class MaximalSpacesSolver extends BaseSolver {
             gravityDrop(box, container);
             if (box.position.y > sp.y) box.position.y = sp.y;
 
+            if (!isSufficientlySupported(box, container)) { unPackable.push(box); continue; }
             if (!container.canHold(box)) { unPackable.push(box); continue; }
             container.put(box);
 

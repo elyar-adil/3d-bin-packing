@@ -33,3 +33,52 @@ export function gravityDrop(box, container) {
 
     box.position.y = supportY;
 }
+
+/**
+ * Check whether a box has sufficient contact area from the surface(s) below.
+ *
+ * A box resting on the container floor (position.y ≈ 0) is always stable.
+ * Otherwise the total XZ overlap between the box's base and all boxes whose
+ * top face is exactly at box.position.y must reach at least `minSupportRatio`
+ * of the box's own base area.  At 0.5 (50 %) the centre of mass is virtually
+ * guaranteed to lie over a supported region for any rectangular support shape,
+ * which prevents edge-hanging and transport-instability issues.
+ *
+ * @param {Object} box             - Box to check (position already settled by gravityDrop).
+ * @param {Object} container       - Container holding already-placed boxes.
+ * @param {number} [minSupportRatio=0.5] - Minimum supported fraction of base area (0–1).
+ * @returns {boolean}
+ */
+export function isSufficientlySupported(box, container, minSupportRatio = 0.5) {
+    const TOL = 0.001;
+
+    // Boxes resting on the floor need no further support check.
+    if (box.position.y < TOL) return true;
+
+    const baseArea = box.size.x * box.size.z;
+    if (baseArea < TOL) return true;
+
+    const supportY = box.position.y;
+
+    // Retrieve only boxes in the XZ column at or below supportY.
+    const candidates = container._grid
+        ? container._grid.getXZCandidates(box.position, box.size, supportY)
+        : container.boxes;
+
+    let supportedArea = 0;
+    for (const b of candidates) {
+        // Only count boxes whose top face is flush with the box's bottom face.
+        if (Math.abs(b.position.y + b.size.y - supportY) > TOL) continue;
+
+        const ox = Math.min(box.position.x + box.size.x, b.position.x + b.size.x)
+                 - Math.max(box.position.x, b.position.x);
+        const oz = Math.min(box.position.z + box.size.z, b.position.z + b.size.z)
+                 - Math.max(box.position.z, b.position.z);
+
+        if (ox > TOL && oz > TOL) {
+            supportedArea += ox * oz;
+        }
+    }
+
+    return supportedArea / baseArea >= minSupportRatio;
+}
