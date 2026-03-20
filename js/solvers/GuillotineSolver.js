@@ -6,7 +6,7 @@
 import { BaseSolver } from './BaseSolver.js';
 import { Vector3D } from '../models/Vector3D.js';
 import { sortBoxesForPacking } from '../utils/sorting.js';
-import { gravityDrop } from '../utils/physics.js';
+import { gravityDrop, isSufficientlySupported } from '../utils/physics.js';
 
 export class GuillotineSolver extends BaseSolver {
     static getName()        { return '断切算法'; }
@@ -60,6 +60,7 @@ export class GuillotineSolver extends BaseSolver {
             box.position = new Vector3D(sp.x, sp.y, sp.z);
             gravityDrop(box, container);
 
+            if (!isSufficientlySupported(box, container)) { unPackable.push(box); continue; }
             if (!container.canHold(box)) { unPackable.push(box); continue; }
             container.put(box);
 

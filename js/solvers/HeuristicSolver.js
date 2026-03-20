@@ -6,7 +6,7 @@
 import { BaseSolver }           from './BaseSolver.js';
 import { Vector3D }             from '../models/Vector3D.js';
 import { sortBoxesForPacking }  from '../utils/sorting.js';
-import { gravityDrop }          from '../utils/physics.js';
+import { gravityDrop, isSufficientlySupported } from '../utils/physics.js';
 
 export class HeuristicSolver extends BaseSolver {
     static getName()        { return '启发式贪心'; }
@@ -151,6 +151,13 @@ export class HeuristicSolver extends BaseSolver {
 
             if (placed) {
                 const moved = this._moveBoxToShrink(box);
+                // After gravity settling and compaction, verify the box has
+                // enough contact area below (≥ 50 % of base).  Unstable
+                // placements are rejected rather than left as floating boxes.
+                if (!isSufficientlySupported(box, this.container)) {
+                    unPackable.push(box);
+                    continue;
+                }
                 if (!moved) posIdx = null;
                 this.container.put(box);
                 this._updateCandidatePositions(candidates, box, posIdx);
